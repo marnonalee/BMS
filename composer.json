@@ -1,0 +1,12 @@
+{
+    "name": "mylesmralit/bms",
+    "description": "barangay management system",
+    "type": "project",
+    "require": {
+        "phpmailer/phpmailer": "^7.0",
+        "setasign/fpdi": "^2.6",
+        "setasign/fpdf": "^1.8"
+    },
+    "license": "MIT",
+    "minimum-stability": "stable"
+}

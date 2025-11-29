@@ -1,0 +1,529 @@
+<?php
+session_start();
+if (!isset($_SESSION["user_id"])) {
+    header("Location: ../../login.php");
+    exit();
+}
+include '../db.php';
+
+$user_id = $_SESSION["user_id"];
+$userQuery = $conn->query("SELECT * FROM users WHERE id = '$user_id'");
+$user = $userQuery->fetch_assoc();
+$role = $user['role'];
+
+$query = "
+    SELECT bo.*, r.first_name, r.last_name, p.position_name, p.id as position_id
+    FROM barangay_officials bo
+    LEFT JOIN residents r ON bo.resident_id = r.resident_id
+    LEFT JOIN positions p ON bo.position_id = p.id
+    ORDER BY bo.position_id ASC
+";
+$result = $conn->query($query);
+
+$residentsQuery = $conn->query("SELECT resident_id, first_name, last_name FROM residents ORDER BY first_name ASC");
+$residentsList = [];
+while($r = $residentsQuery->fetch_assoc()){
+    $residentsList[] = $r;
+}
+
+$positionsQuery = $conn->query("SELECT id, position_name, `limit` FROM positions WHERE status='Active' ORDER BY id ASC");
+$positionsList = [];
+while($p = $positionsQuery->fetch_assoc()){
+    $positionsList[] = $p;
+}
+
+$positionCounts = [];
+$countQuery = $conn->query("SELECT position_id, COUNT(*) as cnt FROM barangay_officials GROUP BY position_id");
+while($row = $countQuery->fetch_assoc()){
+    $positionCounts[$row['position_id']] = $row['cnt'];
+}
+
+$assignedResidentsIds = [];
+$assignedQuery = $conn->query("SELECT resident_id FROM barangay_officials");
+while($row = $assignedQuery->fetch_assoc()){
+    $assignedResidentsIds[] = $row['resident_id'];
+}
+?>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Barangay Officials</title>
+<link rel="stylesheet" href="b.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+</head>
+<body class=" font-sans">
+<div class="flex h-screen">
+<aside id="sidebar" class="w-64 bg-green-500 text-white flex flex-col shadow-lg transition-all duration-300 h-screen">
+  <div class="flex items-center justify-between p-6 border-b border-green-600">
+    <div class="flex items-center space-x-2">
+      <span class="material-icons text-3xl">account_circle</span>
+      <span class="font-bold text-xl sidebar-text"><?= htmlspecialchars($user['username'] ?? 'User') ?></span>
+    </div>
+    <button id="toggleSidebar" class="material-icons cursor-pointer">chevron_left</button>
+  </div>
+  <nav class="flex-1 overflow-y-auto px-2 py-6 space-y-2">
+    <a href="../dashboard.php" class="flex items-center px-4 py-3 rounded hover:bg-green-500 transition-colors"><span class="material-icons">dashboard</span><span class="ml-3 sidebar-text">Dashboard</span></a>
+    <a href="../officials/barangay_officials.php" class="flex items-center px-4 py-3 rounded bg-green-600 transition-colors"><span class="material-icons mr-3">people</span><span class="sidebar-text">Barangay Officials</span></a>
+    <a href="../residents/resident.php" class="flex items-center px-4 py-3 rounded hover:bg-green-500 transition-colors"><span class="material-icons mr-3">people</span><span class="sidebar-text">Residents</span></a>
+    <a href="../households/household.php" class="flex items-center px-4 py-3 rounded hover:bg-green-500 transition-colors">
+      <span class="material-icons mr-3">home</span>
+      <span class="sidebar-text">Household</span>
+    </a>
+        <?php if($role === 'admin'): ?>
+    <div class="mt-4">
+      <span class="px-4 py-2 text-gray-200 uppercase text-xs tracking-wide sidebar-text">Community</span>
+      <a href="../announcements.php" class="flex items-center px-4 py-3 rounded hover:bg-green-500 mt-1 transition-colors">
+        <span class="material-icons mr-3">campaign</span>
+        <span class="sidebar-text">Announcements</span>
+      </a>
+    </div>
+     <?php endif; ?>
+    <div class="mt-4"><span class="px-4 py-2 text-gray-200 uppercase text-xs tracking-wide sidebar-text">Certificate Management</span>
+    <?php if($role === 'admin'): ?>
+      <a href="../certificate/certificate_types.php" class="flex items-center px-4 py-3 rounded hover:bg-green-500 mt-1 transition-colors"><span class="material-icons mr-3">badge</span><span class="sidebar-text">Certificate Types</span></a>
+    <?php endif; ?>
+      <a href="../certificate/certificate_requests.php" class="flex items-center px-4 py-3 rounded hover:bg-green-500 mt-1 transition-colors"><span class="material-icons mr-3">assignment</span><span class="sidebar-text">Certificate Requests</span></a>
+      <a href="../certificate/walkin_certificates.php" class="flex items-center px-4 py-3 rounded hover:bg-green-500 mt-1 transition-colors"><span class="material-icons mr-3">person_add</span><span class="sidebar-text">Walk-in Requests</span></a>
+    </div>
+    <div class="mt-4"><span class="px-4 py-2 text-gray-200 uppercase text-xs tracking-wide sidebar-text">Blotter</span>
+      <a href="../blotter/blotter.php" class="flex items-center px-4 py-3 rounded hover:bg-green-500 mt-1 transition-colors"><span class="material-icons mr-3">gavel</span><span class="sidebar-text">Blotter Records</span></a>
+    </div>
+    <a href="../reports/report.php" class="flex items-center px-4 py-3 rounded hover:bg-green-500 transition-colors"><span class="material-icons mr-3">bar_chart</span><span class="sidebar-text">Reports</span></a>
+    <div class="mt-4"><span class="px-4 py-2 text-gray-200 uppercase text-xs tracking-wide sidebar-text">ID Management</span>
+      <a href="#" class="flex items-center px-4 py-3 rounded hover:bg-green-500 mt-1 transition-colors"><span class="material-icons mr-3">credit_card</span><span class="sidebar-text">ID Requests</span></a>
+      <a href="#" class="flex items-center px-4 py-3 rounded hover:bg-green-500 mt-1 transition-colors"><span class="material-icons mr-3">elderly</span><span class="sidebar-text">Senior / PWD / Solo Parent</span></a>
+    </div>
+       <?php if($role === 'admin'): ?>
+        <div class="mt-4">
+        <span class="px-4 py-2 text-gray-200 uppercase text-xs tracking-wide sidebar-text">User Management</span>
+        <a href="../user_manage/user_management.php" class="flex items-center px-4 py-3 rounded hover:bg-green-500 mt-1 transition-colors">
+            <span class="material-icons mr-3">admin_panel_settings</span><span class="sidebar-text">System User</span>
+        </a>
+       <a href="../user_manage/settings.php" class="flex items-center px-4 py-3 rounded hover:bg-green-500 mt-4 transition-colors">
+            <span class="material-icons mr-3">settings</span><span class="sidebar-text">Settings</span>
+        </a>
+        </div>
+    <?php endif; ?>
+        <a href="../logout.php" class="flex items-center px-4 py-3 rounded hover:bg-red-600 transition-colors mt-1"><span class="material-icons mr-3">logout</span><span class="sidebar-text">Logout</span></a>
+  </nav>
+</aside>
+
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <header class="flex items-center justify-between bg-white shadow p-4 flex-shrink-0">
+      <h2 class="text-xl font-semibold text-gray-700">Barangay Officials</h2>
+      <div class="flex items-center space-x-4">
+        <?php if($role === 'admin'): ?>
+       <button onclick="openAddPanel()" class="bg-green-500 text-white px-4 py-2 rounded">Add Official</button>
+        <?php endif; ?>
+      </div>
+    </header>
+
+    <main class="flex-1 overflow-y-auto p-6">
+            <div id="addPanel" class="hidden bg-white shadow-md p-4 mb-6 relative max-w-2xl mx-auto">
+                <button onclick="closeAddPanel()" class="absolute top-2 right-2 material-icons text-gray-600 hover:text-gray-800 text-2xl cursor-pointer">close</button>
+
+                <h2 class="text-2xl font-bold mb-4">Add Barangay Official</h2>
+
+                <form action="add_official.php" method="POST" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                    <div class="md:col-span-2 flex flex-col items-center">
+                        <label class="block font-semibold mb-1">Photo</label>
+                        <div class="h-32 w-32 rounded-full overflow-hidden mb-2 border">
+                            <img id="addPhotoPreview" class="object-cover h-full w-full rounded-full" src="../uploads/default-avatar.jpg">
+                        </div>
+                        <input type="file" name="photo" id="addPhotoInput" class="w-full text-sm text-gray-700 px-2 py-1 border" accept="image/*">
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold mb-1">Resident</label>
+                        <input type="text" id="residentInput" placeholder="Type resident name..." required class="w-full border px-2 py-1 text-sm">
+                        <ul id="residentList" class="border mt-1 max-h-40 overflow-y-auto hidden bg-white absolute w-full z-10"></ul>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold mb-1">Position</label>
+                        <select name="position_id" required class="w-full border px-2 py-1 text-sm">
+                            <?php foreach($positionsList as $p):
+                                $count = $positionCounts[$p['id']] ?? 0;
+                                $disabled = ($count >= $p['limit']) ? 'disabled' : '';
+                            ?>
+                                <option value="<?= $p['id'] ?>" <?= $disabled ? 'disabled' : '' ?>>
+                                    <?= htmlspecialchars($p['position_name']) ?><?= $disabled ? ' (Full)' : '' ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold mb-1">Start Date</label>
+                        <input type="date" name="start_date" required class="w-full border px-2 py-1 text-sm">
+                    </div>
+
+                    <div>
+                        <label class="block font-semibold mb-1">End Date</label>
+                        <input type="date" name="end_date" required class="w-full border px-2 py-1 text-sm">
+                    </div>
+
+                    <div class="md:col-span-2 flex justify-end space-x-2 mt-2">
+                        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 text-sm">Add</button>
+                        <button type="button" onclick="closeAddPanel()" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500 text-sm">Cancel</button>
+                    </div>
+
+                </form>
+            </div>
+
+            <div id="editPanel" class="hidden bg-white shadow-md p-4 mb-6 relative max-w-2xl mx-auto">
+                <button onclick="closeEditPanel()" 
+                    class="absolute top-2 right-2 material-icons text-gray-600 hover:text-gray-800 text-2xl cursor-pointer">
+                    close
+                </button>
+                <h2 class="text-2xl font-bold mb-4">Edit Barangay Official</h2>
+                <form id="editForm" action="update_official.php" method="POST" enctype="multipart/form-data"
+                    class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <input type="hidden" name="official_id" id="editOfficialId">
+                    <div class="md:col-span-2 flex flex-col items-center">
+                        <label class="block font-semibold mb-1">Photo</label>
+                        <div class="mb-2 border rounded-full overflow-hidden w-32 h-32">
+                            <img id="editPhotoPreview" class="object-cover w-32 h-32 rounded-full">
+                        </div>
+                        <input type="file" name="photo" id="editPhotoInput" class="w-full text-sm text-gray-700 px-2 py-1 border">
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1">Resident</label>
+                        <select name="resident_id" id="editResident" class="w-full border px-2 py-1 text-sm">
+                            <?php foreach($residentsList as $res):
+                                $isAssigned = in_array($res['resident_id'], $assignedResidentsIds);
+                            ?>
+                                <option value="<?= $res['resident_id'] ?>" <?= $isAssigned ? 'disabled' : '' ?>>
+                                    <?= htmlspecialchars($res['first_name'].' '.$res['last_name']) ?><?= $isAssigned ? ' (Already in Position)' : '' ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1">Position</label>
+                        <select name="position_id" id="editPosition" class="w-full border px-2 py-1 text-sm">
+                            <?php foreach($positionsList as $p):
+                                $count = $positionCounts[$p['id']] ?? 0;
+                                $disabled = ($count >= $p['limit']) ? 'disabled' : '';
+                            ?>
+                                <option value="<?= $p['id'] ?>" <?= $disabled ? 'disabled' : '' ?>>
+                                    <?= htmlspecialchars($p['position_name']) ?><?= $disabled ? ' (Full)' : '' ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1">Start Date</label>
+                        <input type="date" name="start_date" id="editStart" class="w-full border px-2 py-1 text-sm" required>
+                    </div>
+                    <div>
+                        <label class="block font-semibold mb-1">End Date</label>
+                        <input type="date" name="end_date" id="editEnd" class="w-full border px-2 py-1 text-sm" required>
+                    </div>
+                    <div class="md:col-span-2 flex justify-end space-x-2 mt-2">
+                        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 shadow text-sm font-medium">Update</button>
+                        <button type="button" onclick="closeEditPanel()" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500 text-sm">Cancel</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-3 auto-rows-fr">
+                <?php if ($result->num_rows > 0): ?>
+                    <?php while($o = $result->fetch_assoc()): ?>
+                        <div class="bg-white shadow rounded-xl overflow-hidden cursor-pointer hover:shadow-lg transition relative flex flex-col items-center"
+                            onclick='openModal(<?= json_encode($o) ?>)'>
+                            <div class="w-full h-60 bg-gray-200 flex items-center justify-center overflow-hidden">
+                                <img src="../uploads/<?= $o['photo'] && trim($o['photo']) !== '' ? htmlspecialchars($o['photo']) : 'default-avatar.jpg' ?>" 
+                                    class="h-full w-auto object-cover">
+                            </div>
+                            <div class="p-2 text-center w-full">
+                                <h2 class="text-sm font-semibold truncate"><?= htmlspecialchars($o['first_name'].' '.$o['last_name']) ?></h2>
+                                <p class="text-xs text-gray-600 truncate"><strong>Position:</strong> <?= htmlspecialchars($o['position_name']) ?></p>
+                                <?php if(!empty($o['department'])): ?>
+                                    <p class="text-xs text-gray-500 truncate"><strong>Department:</strong> <?= htmlspecialchars($o['department']) ?></p>
+                                <?php endif; ?>
+                                <p class="text-xs text-gray-500">
+                                    <?= date('M d, Y', strtotime($o['start_date'])) ?> - <?= date('M d, Y', strtotime($o['end_date'])) ?>
+                                </p>
+                            </div>
+                        </div>
+                    <?php endwhile; ?>
+                <?php endif; ?>
+            </div>
+
+    </main>
+  </div>
+</div>
+
+<style>
+#sidebar nav::-webkit-scrollbar {
+  width: 6px;
+}
+#sidebar nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+#sidebar nav::-webkit-scrollbar-thumb {
+  background-color: #15803d;
+  border-radius: 10px;
+}
+#sidebar nav::-webkit-scrollbar-thumb:hover {
+  background-color: #166534;
+}
+</style>
+<div id="officialModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white shadow-lg w-full max-w-2xl p-6 rounded-2xl relative overflow-hidden">
+        <button onclick="closeModal()" class="absolute top-4 right-4 material-icons text-gray-600 hover:text-gray-800 cursor-pointer text-3xl">close</button>
+        <div id="viewContent" class="space-y-6">
+            <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
+                <div id="modalPhoto" class="h-40 w-40 md:w-40 md:h-40 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0 shadow-inner"></div>
+                <div class="flex-1 text-center md:text-left">
+                    <h2 id="modalName" class="text-2xl font-bold mb-2"></h2>
+                    <p id="modalPosition" class="text-gray-800 text-lg mb-1"></p>
+                    <p id="modalDept" class="text-gray-700 text-base mb-1"></p>
+                    <p id="modalTerm" class="text-gray-600 text-sm italic"></p>
+                </div>
+            </div>
+            <?php if($role === 'admin'): ?>
+            <div class="flex justify-center md:justify-end">
+                <button onclick="switchToEdit()" class="bg-yellow-400 text-white px-5 py-2 rounded-lg hover:bg-yellow-500 shadow font-medium text-sm">Edit</button>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+</div>
+
+
+<div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50"> 
+    <div class="bg-white rounded-xl p-6 w-80 text-center relative">
+        <button id="closeSuccessModal" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 material-icons">close</button>
+        <span id="modalIcon" class="material-icons text-4xl mb-2"></span>
+        <p id="successMessage" class="text-gray-700 font-medium"></p>
+        <button id="okSuccessBtn" class="mt-4 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600">OK</button>
+    </div>
+</div>
+
+<script>
+// First, assign the PHP variables to the window
+window.residentsList = <?= json_encode($residentsList) ?>;
+window.assignedResidents = <?= json_encode($assignedResidentsIds) ?>;
+window.positionsList = <?= json_encode($positionsList) ?>;
+window.positionCounts = <?= json_encode($positionCounts) ?>;
+
+// Success message
+<?php if(isset($_SESSION['success_message'])): ?>
+window.sessionMessage = <?= json_encode($_SESSION['success_message']) ?>;
+<?php unset($_SESSION['success_message']); ?>
+<?php endif; ?>
+
+// Globals
+let currentOfficial = {};
+const residentsList = window.residentsList || [];
+const assignedResidents = window.assignedResidents || [];
+
+// Sidebar toggle
+const sidebar = document.getElementById('sidebar');
+const toggleBtn = document.getElementById('toggleSidebar');
+toggleBtn.onclick = () => {
+    sidebar.classList.toggle('sidebar-collapsed');
+    let icon = toggleBtn.textContent.trim();
+    toggleBtn.textContent = icon === 'chevron_left' ? 'chevron_right' : 'chevron_left';
+};
+
+// Success modal
+document.addEventListener('DOMContentLoaded', function() {
+    if (window.sessionMessage) {
+        const modal = document.getElementById('successModal');
+        const modalMessage = document.getElementById('successMessage');
+        const modalIcon = document.getElementById('modalIcon');
+
+        let type = 'success', text = '';
+        if(typeof window.sessionMessage === 'string'){
+            text = window.sessionMessage;
+        } else {
+            type = window.sessionMessage.type || 'success';
+            text = window.sessionMessage.text || '';
+        }
+
+        modalMessage.textContent = text;
+        if(type === 'success'){
+            modalIcon.textContent = 'check_circle';
+            modalIcon.className = 'material-icons text-green-500 text-4xl mb-2';
+        } else if(type === 'error'){
+            modalIcon.textContent = 'error';
+            modalIcon.className = 'material-icons text-red-500 text-4xl mb-2';
+        } else if(type === 'warning'){
+            modalIcon.textContent = 'warning';
+            modalIcon.className = 'material-icons text-yellow-500 text-4xl mb-2';
+        }
+
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+
+        document.getElementById('closeSuccessModal').addEventListener('click', ()=> modal.classList.add('hidden'));
+        document.getElementById('okSuccessBtn').addEventListener('click', ()=> modal.classList.add('hidden'));
+    }
+});
+
+// Resident search input
+const input = document.getElementById('residentInput');
+const list = document.getElementById('residentList');
+
+if(input && list){
+    input.addEventListener('input', function(){
+        const query = this.value.toLowerCase().trim();
+        list.innerHTML = '';
+        if(query === '') { list.classList.add('hidden'); return; }
+
+        const matches = residentsList.filter(res => !assignedResidents.includes(res.resident_id) &&
+            (res.first_name + ' ' + res.last_name).toLowerCase().includes(query));
+
+        if(matches.length === 0){
+            list.innerHTML = '<li class="px-2 py-1 text-gray-500">No resident found</li>';
+        } else {
+            matches.forEach(res => {
+                const li = document.createElement('li');
+                li.textContent = res.first_name + ' ' + res.last_name;
+                li.className = 'px-2 py-1 hover:bg-green-200 cursor-pointer';
+                li.addEventListener('click', function(){
+                    input.value = li.textContent;
+                    input.dataset.residentId = res.resident_id;
+                    list.classList.add('hidden');
+                });
+                list.appendChild(li);
+            });
+        }
+        list.classList.remove('hidden');
+    });
+
+    document.addEventListener('click', function(e){
+        if(!list.contains(e.target) && e.target !== input){ list.classList.add('hidden'); }
+    });
+
+    document.querySelector('form').addEventListener('submit', function(e){
+        const residentId = input.dataset.residentId;
+        if(!residentId){
+            e.preventDefault();
+            alert('Please select a resident from the list.');
+        } else {
+            const hidden = document.createElement('input');
+            hidden.type = 'hidden';
+            hidden.name = 'resident_id';
+            hidden.value = residentId;
+            this.appendChild(hidden);
+            input.removeAttribute('name');
+        }
+    });
+}
+
+// Add/Edit Panel Functions
+function openAddPanel(){ const addPanel = document.getElementById('addPanel'); const editPanel = document.getElementById('editPanel'); if(editPanel) editPanel.classList.add('hidden'); if(addPanel) addPanel.classList.remove('hidden'); }
+function closeAddPanel(){ const addPanel = document.getElementById('addPanel'); if(addPanel) addPanel.classList.add('hidden'); }
+function openEditPanel(){ const addPanel = document.getElementById('addPanel'); const editPanel = document.getElementById('editPanel'); if(addPanel) addPanel.classList.add('hidden'); if(editPanel) editPanel.classList.remove('hidden'); }
+function closeEditPanel(){ const editPanel = document.getElementById('editPanel'); if(editPanel) editPanel.classList.add('hidden'); }
+
+// Modal functions
+function openModal(o) {
+    currentOfficial = o;
+    const modalPhoto = document.getElementById("modalPhoto");
+    if(modalPhoto) modalPhoto.innerHTML = `<img src="../uploads/${o.photo && o.photo.trim() !== '' ? o.photo : 'default-avatar.jpg'}" class="object-cover h-full w-full rounded">`;
+    const modalName = document.getElementById("modalName");
+    if(modalName) modalName.textContent = o.first_name + ' ' + o.last_name;
+    const modalPosition = document.getElementById("modalPosition");
+    if(modalPosition) modalPosition.textContent = "Position: " + o.position_name;
+    const modalTerm = document.getElementById("modalTerm");
+    if(modalTerm) modalTerm.textContent = "Term: " + o.start_date + " - " + o.end_date;
+    const officialModal = document.getElementById("officialModal");
+    if(officialModal){ officialModal.classList.remove("hidden"); officialModal.classList.add("flex"); }
+    const editContent = document.getElementById("editContent"); if(editContent) editContent.classList.add("hidden");
+    const viewContent = document.getElementById("viewContent"); if(viewContent) viewContent.classList.remove("hidden");
+}
+function closeModal() { const officialModal = document.getElementById("officialModal"); if(officialModal){ officialModal.classList.add("hidden"); officialModal.classList.remove("flex"); } }
+
+// Switch to edit inline
+function switchToEdit() {
+    closeModal();
+    const editPanel = document.getElementById("editPanel"); if(editPanel) editPanel.classList.remove("hidden");
+
+    const editOfficialId = document.getElementById("editOfficialId");
+    if(editOfficialId) editOfficialId.value = currentOfficial.id || currentOfficial.official_id;
+
+    const editPhotoPreview = document.getElementById("editPhotoPreview");
+    if(editPhotoPreview) editPhotoPreview.src = currentOfficial.photo ? `../uploads/${currentOfficial.photo}` : '';
+
+    const editStart = document.getElementById("editStart"); if(editStart) editStart.value = currentOfficial.start_date;
+    const editEnd = document.getElementById("editEnd"); if(editEnd) editEnd.value = currentOfficial.end_date;
+
+    const selectResident = document.getElementById("editResident");
+    if(selectResident){
+        selectResident.innerHTML = "";
+        residentsList.forEach(res => {
+            const isAssigned = assignedResidents.includes(res.resident_id) && res.resident_id != currentOfficial.resident_id;
+            const option = document.createElement("option");
+            option.value = res.resident_id;
+            option.text = res.first_name + " " + res.last_name + (isAssigned ? " (Already in Position)" : "");
+            option.disabled = isAssigned;
+            if(res.resident_id == currentOfficial.resident_id) option.selected = true;
+            selectResident.appendChild(option);
+        });
+    }
+
+    const selectPosition = document.getElementById("editPosition");
+    if(selectPosition){
+        selectPosition.innerHTML = "";
+        window.positionsList.forEach(p => {
+            const count = window.positionCounts[p.id] || 0;
+            const disabled = (count >= p.limit);
+            const opt = document.createElement("option");
+            opt.value = p.id;
+            opt.text = p.position_name + (disabled ? " (Full)" : "");
+            opt.disabled = disabled;
+            if(opt.value == currentOfficial.position_id) opt.selected = true;
+            selectPosition.appendChild(opt);
+        });
+    }
+}
+
+function closeEditPanel(){ const editPanel = document.getElementById("editPanel"); if(editPanel) editPanel.classList.add("hidden"); }
+function switchToView(){ const editContent = document.getElementById("editContent"); if(editContent) editContent.classList.add("hidden"); const viewContent = document.getElementById("viewContent"); if(viewContent) viewContent.classList.remove("hidden"); }
+
+// Photo preview
+const editPhotoInput = document.getElementById("editPhotoInput");
+const editPhotoPreview = document.getElementById("editPhotoPreview");
+if(editPhotoInput){
+    editPhotoInput.addEventListener("change", function() {
+        const file = this.files[0];
+        if(file){
+            const reader = new FileReader();
+            reader.onload = function(e){ if(editPhotoPreview) editPhotoPreview.src = e.target.result; }
+            reader.readAsDataURL(file);
+        } else { if(editPhotoPreview) editPhotoPreview.src = currentOfficial.photo ? `../uploads/${currentOfficial.photo}` : ''; }
+    });
+}
+
+const addPhotoInput = document.getElementById('addPhotoInput');
+const addPhotoPreview = document.getElementById('addPhotoPreview');
+if(addPhotoInput){
+    addPhotoInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if(file){
+            const reader = new FileReader();
+            reader.onload = function(e){ addPhotoPreview.src = e.target.result; }
+            reader.readAsDataURL(file);
+        } else {
+            addPhotoPreview.src = '../uploads/default-avatar.jpg';
+        }
+    });
+}
+
+// Add Modal
+function openAddModal(){ const addModal = document.getElementById('addOfficialModal'); if(addModal){ addModal.classList.remove('hidden'); addModal.classList.add('flex'); } }
+function closeAddModal(){ const addModal = document.getElementById('addOfficialModal'); if(addModal){ addModal.classList.add('hidden'); addModal.classList.remove('flex'); } }
+</script>
+
+
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</body>
+</html>

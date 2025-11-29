@@ -1,0 +1,4 @@
+.sidebar-collapsed { width: 80px !important; }
+.sidebar-collapsed .sidebar-text { display: none; }
+.sidebar-collapsed .material-icons { margin: 0 auto !important; }
+.card-hover:hover { transform: scale(1.05); transition: 0.3s; }
