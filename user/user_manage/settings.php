@@ -81,17 +81,17 @@ $systemLogoPath = '../' . $systemLogo;
       <span class="material-icons mr-3">home</span><span class="sidebar-text">Household</span>
     </a>
 
-          <?php if($role === 'admin'): ?>
-        <div class="pt-4">
-            <span class="px-4 py-2 text-white/70 uppercase text-xs tracking-wider sidebar-text">Requests</span>
-            <a href="requests/household_member_requests.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
-                <span class="material-icons mr-3">group_add</span><span class="sidebar-text">Household Member Requests</span>
-            </a>
-            <a href="requests/request_profile_update.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
-                <span class="material-icons mr-3">pending_actions</span><span class="sidebar-text">Profile Update Requests</span>
-            </a>
-        </div>
-        <?php endif; ?>
+      <?php if($role === 'admin'): ?>
+    <div class="pt-4">
+        <span class="px-4 py-2 text-white/70 uppercase text-xs tracking-wider sidebar-text">Requests</span>
+        <a href="requests/household_member_requests.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
+            <span class="material-icons mr-3">group_add</span><span class="sidebar-text">Household Member Requests</span>
+        </a>
+        <a href="requests/request_profile_update.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
+            <span class="material-icons mr-3">pending_actions</span><span class="sidebar-text">Profile Update Requests</span>
+        </a>
+    </div>
+    <?php endif; ?>
     <?php if($role === 'admin'): ?>
       <div class="pt-4">
         <span class="px-4 py-2 text-white/70 uppercase text-xs tracking-wider sidebar-text">Community</span>
@@ -235,6 +235,36 @@ $systemLogoPath = '../' . $systemLogo;
         <input type="password" name="app_password" placeholder="App Password" value="<?= htmlspecialchars($settings['app_password']) ?>" class="p-3 border rounded w-full mt-3 focus:outline-none focus:ring-2 focus:ring-emerald-400">
       </div>
     </div>
+    <div class="bg-gray-50 border rounded-lg overflow-hidden mt-4">
+  <button type="button" class="w-full flex justify-between items-center px-4 py-3 bg-white font-semibold text-left accordion-btn focus:outline-none">
+    GCash Settings
+    <i class="fa-solid fa-chevron-down transition-all"></i>
+  </button>
+  <div class="accordion-body hidden px-4 pb-4 pt-2">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
+      <input type="text" name="gcash_name" placeholder="GCash Name" value="<?= htmlspecialchars($settings['gcash_name'] ?? '') ?>" class="p-3 border rounded focus:outline-none focus:ring-2 focus:ring-emerald-400">
+      <input type="text" name="gcash_number" placeholder="GCash Number" value="<?= htmlspecialchars($settings['gcash_number'] ?? '') ?>" class="p-3 border rounded focus:outline-none focus:ring-2 focus:ring-emerald-400">
+    </div>
+   <div class="mt-3">
+      <label class="block mb-1 font-semibold text-gray-700">GCash QR Code</label>
+      <input type="file" name="gcash_qr" id="gcashInput" class="w-full" accept="image/*">
+
+      <?php 
+        $gcashQrUrl = '';
+        if(!empty($settings['gcash_qr'])){
+            $gcashQrUrl = 'uploads/' . basename($settings['gcash_qr']);
+        }
+      ?>
+      
+      <img id="gcashPreview" 
+          src="<?= htmlspecialchars($gcashQrUrl) ?>" 
+          class="mt-2 h-16 rounded shadow-sm <?= empty($gcashQrUrl) ? 'hidden' : '' ?>" 
+          alt="GCash QR Code Preview">
+    </div>
+
+  </div>
+</div>
+
 
     <button class="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition mt-4" type="submit">Save Settings</button>
   </form>
@@ -261,10 +291,10 @@ $systemLogoPath = '../' . $systemLogo;
   </div>
 </div>
 
-<div class="bg-white p-6 rounded-xl shadow-lg w-full space-y-4">
-  <h2 class="text-lg font-bold text-gray-800">Live Preview</h2>
-  <iframe id="previewFrame" src="../../index.php" class="w-full h-[1200px] border rounded shadow-sm"></iframe>
-</div>
+  <div class="bg-white p-6 rounded-xl shadow-lg w-full space-y-4">
+    <h2 class="text-lg font-bold text-gray-800">Live Preview</h2>
+    <iframe id="previewFrame" src="../../index.php" class="w-full h-[1200px] border rounded shadow-sm"></iframe>
+  </div>
 
      
     </div>
@@ -284,125 +314,194 @@ $systemLogoPath = '../' . $systemLogo;
         </div>
     </div>
 </div>
-
 <script>
 const phpModalType = '<?= $modalType ?>';
 const phpModalMessage = '<?= addslashes($modalMessage) ?>';
 
-document.querySelectorAll(".accordion-btn").forEach(btn=>{
-  btn.addEventListener("click",()=>{
+// Accordion toggle
+document.querySelectorAll(".accordion-btn").forEach(btn => {
+  btn.addEventListener("click", () => {
     const body = btn.nextElementSibling;
     const icon = btn.querySelector("i");
-    body.classList.toggle("hidden");
-    icon.classList.toggle("rotate-180");
+    if(body) body.classList.toggle("hidden");
+    if(icon) icon.classList.toggle("rotate-180");
   });
 });
 
+// GCash QR preview
+const gcashInput = document.getElementById('gcashInput');
+const gcashPreview = document.getElementById('gcashPreview');
+
+if(gcashInput && gcashPreview){
+  gcashInput.addEventListener('change', e => {
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev){
+      gcashPreview.src = ev.target.result;
+      gcashPreview.classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+// Success modal
 const successModal = document.getElementById('successModal');
 const successMessageEl = document.getElementById('successMessage');
 const successIcon = document.getElementById('successIcon');
 const closeSuccessModal = document.getElementById('closeSuccessModal');
 const okSuccessBtn = document.getElementById('okSuccessBtn');
 
-const settingsForm = document.getElementById('settingsForm');
-
-const initialFormData = new FormData(settingsForm);
-function formDataEquals(fd1, fd2) {
-  if([...fd1].length !== [...fd2].length) return false;
-  for (let [k,v] of fd1) if(fd2.get(k)!==v) return false;
-  return true;
-}
-
-function showModal(message,type){
+function showModal(message, type) {
+  if(!successModal || !successMessageEl || !successIcon) return;
   successMessageEl.textContent = message;
-  successIcon.textContent = type==='success'?'check_circle':type==='error'?'error':'info';
+  successIcon.textContent = type==='success' ? 'check_circle' : type==='error' ? 'error' : 'info';
   successIcon.classList.remove('text-emerald-500','text-red-500','text-gray-500');
   successIcon.classList.add(type==='success'?'text-emerald-500':type==='error'?'text-red-500':'text-gray-500');
   successModal.classList.remove('hidden');
 }
 
-settingsForm.addEventListener('submit', ev=>{
-  ev.preventDefault();
-  const currentData = new FormData(settingsForm);
-  if(formDataEquals(initialFormData,currentData)){
-    showModal('No changes detected','info');
-    return;
+closeSuccessModal?.addEventListener('click', () => successModal.classList.add('hidden'));
+okSuccessBtn?.addEventListener('click', () => successModal.classList.add('hidden'));
+
+// Settings form
+const settingsForm = document.getElementById('settingsForm');
+if(settingsForm){
+  const initialFormData = new FormData(settingsForm);
+ function formDataEquals(fd1, fd2){
+  if([...fd1].length !== [...fd2].length) return false;
+  for(let [k,v] of fd1){
+    // If it's a file input, skip strict comparison
+    const el = settingsForm.querySelector(`[name="${k}"]`);
+    if(el?.type === 'file'){
+      if(el.files.length) return false; // file selected → consider changed
+      else continue;
+    }
+    if(fd2.get(k) !== v) return false;
   }
-  fetch('save_settings.php',{method:'POST',body:currentData})
-    .then(r=>r.json())
-    .then(res=>{
-      if(res.success){
-        showModal('Settings saved successfully!','success');
-        for(let [k,v] of currentData) initialFormData.set(k,v);
-      }else showModal(res.error||'Save failed','error');
-    });
-});
+  return true;
+}
 
-closeSuccessModal.addEventListener('click',()=>successModal.classList.add('hidden'));
-okSuccessBtn.addEventListener('click',()=>successModal.classList.add('hidden'));
+  settingsForm.addEventListener('submit', ev => {
+    ev.preventDefault();
+    const currentData = new FormData(settingsForm);
+    if(formDataEquals(initialFormData, currentData)){
+      showModal('No changes detected','info');
+      return;
+    }
+    fetch('save_settings.php', { method:'POST', body: currentData })
+      .then(r=>r.json())
+      .then(res=>{
+        if(res.success){
+          showModal('Settings saved successfully!','success');
+          for(let [k,v] of currentData) initialFormData.set(k,v);
+        } else showModal(res.error || 'Save failed','error');
+      });
+  });
+}
 
-document.getElementById('heroUpload').addEventListener('change', e=>{
-  const files=e.target.files;
-  if(!files.length) return;
-  const fd=new FormData();
-  for(let f of files) fd.append('files[]',f);
-  fd.append('action','upload');
-  fetch('hero_actions.php',{method:'POST',body:fd}).then(r=>r.json()).then(res=>res.success?location.reload():showModal(res.error||'Upload failed','error'));
-});
+// Hero image upload
+const heroUpload = document.getElementById('heroUpload');
+if(heroUpload){
+  heroUpload.addEventListener('change', e=>{
+    const files=e.target.files;
+    if(!files.length) return;
+    const fd = new FormData();
+    for(let f of files) fd.append('files[]', f);
+    fd.append('action','upload');
+    fetch('hero_actions.php',{method:'POST',body:fd})
+      .then(r=>r.json())
+      .then(res=>res.success?location.reload():showModal(res.error||'Upload failed','error'));
+  });
+}
 
+// Delete hero images
 document.addEventListener('click', e=>{
   if(e.target.matches('.btn-delete')){
-    const id=e.target.dataset.id;
-    if(!confirm('Delete this hero image?')) return;
-    const fd=new FormData();
+    const id = e.target.dataset.id;
+    if(!id || !confirm('Delete this hero image?')) return;
+    const fd = new FormData();
     fd.append('action','delete');
-    fd.append('id',id);
-    fetch('hero_actions.php',{method:'POST',body:fd}).then(r=>r.json()).then(res=>res.success?location.reload():showModal(res.error||'Delete failed','error'));
+    fd.append('id', id);
+    fetch('hero_actions.php',{method:'POST',body:fd})
+      .then(r=>r.json())
+      .then(res=>res.success?location.reload():showModal(res.error||'Delete failed','error'));
   }
 });
 
-const heroList=document.getElementById('heroList');
-let dragEl=null;
-heroList.addEventListener('dragstart', e=>{dragEl=e.target;e.target.classList.add('dragging');});
-heroList.addEventListener('dragend', e=>{e.target.classList.remove('dragging');saveOrder();});
-heroList.addEventListener('dragover', e=>{
-  e.preventDefault();
-  const after=getDragAfterElement(heroList,e.clientX,e.clientY);
-  const dragging=document.querySelector('.dragging');
-  after?heroList.insertBefore(dragging,after):heroList.appendChild(dragging);
-});
+// Drag & reorder hero images
+const heroList = document.getElementById('heroList');
+if(heroList){
+  let dragEl = null;
 
-function getDragAfterElement(container,x,y){
-  return [...container.querySelectorAll('.hero-item:not(.dragging)')]
-    .reduce((closest,child)=>{
-      const box=child.getBoundingClientRect();
-      const offset=y-box.top-box.height/2;
-      return (offset<0&&offset>closest.offset)?{offset:offset,element:child}:closest;
-    },{offset:Number.NEGATIVE_INFINITY}).element;
+  heroList.addEventListener('dragstart', e => {
+    dragEl = e.target;
+    e.target.classList.add('dragging');
+  });
+
+  heroList.addEventListener('dragend', e => {
+    e.target.classList.remove('dragging');
+    saveOrder();
+  });
+
+  heroList.addEventListener('dragover', e => {
+    e.preventDefault();
+    const after = getDragAfterElement(heroList, e.clientX, e.clientY);
+    const dragging = document.querySelector('.dragging');
+    if(dragging){
+      after ? heroList.insertBefore(dragging, after) : heroList.appendChild(dragging);
+    }
+  });
+
+  function getDragAfterElement(container, x, y){
+    return [...container.querySelectorAll('.hero-item:not(.dragging)')]
+      .reduce((closest, child)=>{
+        const box = child.getBoundingClientRect();
+        const offset = y - box.top - box.height/2;
+        return (offset<0 && offset>closest.offset) ? {offset:offset, element:child} : closest;
+      }, {offset: Number.NEGATIVE_INFINITY}).element;
+  }
+
+  function saveOrder(){
+    const data = [...heroList.querySelectorAll('.hero-item')].map((it, idx)=>({id: it.dataset.id, order: idx}));
+    const fd = new FormData();
+    fd.append('action','reorder');
+    fd.append('data', JSON.stringify(data));
+    fetch('hero_actions.php', {method:'POST', body: fd})
+      .then(r=>r.json())
+      .then(res=>res.success?location.reload():showModal(res.error||'Failed saving order','error'));
+  }
 }
 
-function saveOrder(){
-  const data=[...heroList.querySelectorAll('.hero-item')].map((it,idx)=>({id:it.dataset.id,order:idx}));
-  const fd=new FormData();
-  fd.append('action','reorder');
-  fd.append('data',JSON.stringify(data));
-  fetch('hero_actions.php',{method:'POST',body:fd}).then(r=>r.json()).then(res=>res.success?location.reload():showModal(res.error||'Failed saving order','error'));
+// Apply preview (optional)
+const applyPreviewBtn = document.getElementById('applyPreview');
+if(applyPreviewBtn){
+  applyPreviewBtn.addEventListener('click', ()=>{
+    const speedEl = document.getElementById('sliderSpeed');
+    const opacityEl = document.getElementById('overlayOpacity');
+    const previewFrame = document.getElementById('previewFrame');
+    if(!speedEl || !opacityEl || !previewFrame) return;
+
+    const src = new URL(previewFrame.src, location.href);
+    src.searchParams.set('hero_speed', speedEl.value);
+    src.searchParams.set('hero_opacity', opacityEl.value);
+    previewFrame.src = src.toString();
+  });
 }
 
-document.getElementById('applyPreview').addEventListener('click',()=>{
-  const speed=document.getElementById('sliderSpeed').value;
-  const opacity=document.getElementById('overlayOpacity').value;
-  const src=new URL(previewFrame.src,location.href);
-  src.searchParams.set('hero_speed',speed);
-  src.searchParams.set('hero_opacity',opacity);
-  previewFrame.src=src.toString();
-});
-
-document.getElementById('savePreviewSettings').addEventListener('click',()=>{
-  const fd=new FormData(document.getElementById('settingsForm'));
-  fd.append('save_preview','1');
-  fetch('save_settings.php',{method:'POST',body:fd}).then(r=>r.json()).then(res=>res.success?location.reload():showModal(res.error||'Save failed','error'));
-});
+// Save preview settings (optional)
+const savePreviewBtn = document.getElementById('savePreviewSettings');
+if(savePreviewBtn){
+  savePreviewBtn.addEventListener('click', ()=>{
+    const form = document.getElementById('settingsForm');
+    if(!form) return;
+    const fd = new FormData(form);
+    fd.append('save_preview','1');
+    fetch('save_settings.php',{method:'POST',body:fd})
+      .then(r=>r.json())
+      .then(res=>res.success?location.reload():showModal(res.error||'Save failed','error'));
+  });
+}
 </script>
 
 </body>

@@ -7,16 +7,23 @@ if (!isset($_SESSION["user_id"])) {
 
 include '../db.php';
 $user_id = $_SESSION["user_id"];
-$userQuery = $conn->query("SELECT * FROM users WHERE id = '$user_id'");
-$user = $userQuery->fetch_assoc();
+
+// Fetch logged-in user
+$stmtUser = $conn->prepare("SELECT * FROM users WHERE id=?");
+$stmtUser->bind_param("i", $user_id);
+$stmtUser->execute();
+$user = $stmtUser->get_result()->fetch_assoc();
+$stmtUser->close();
 $role = $user['role'];
 
+// System settings
 $settingsQuery = $conn->query("SELECT barangay_name, system_logo FROM system_settings LIMIT 1");
 $settings = $settingsQuery->fetch_assoc();
 $barangayName = $settings['barangay_name'] ?? 'Barangay Name';
 $systemLogo = $settings['system_logo'] ?? 'default-logo.png';
 $systemLogoPath = '../' . $systemLogo;
 
+// Helper functions
 function logActivity($conn, $user_id, $action, $description = null) {
     $stmt = $conn->prepare("INSERT INTO log_activity (user_id, action, description, created_at) VALUES (?, ?, ?, NOW())");
     $stmt->bind_param("iss", $user_id, $action, $description);
@@ -31,22 +38,44 @@ function sendNotification($conn, $resident_id, $message, $title = "Family Member
     $stmt->close();
 }
 
+// Approve request
 if (isset($_POST['approve_request'])) {
     $request_id = $_POST['request_id'];
-    $reqQuery = $conn->prepare("SELECT * FROM family_member_requests WHERE request_id=?");
-    $reqQuery->bind_param("i", $request_id);
-    $reqQuery->execute();
-    $req = $reqQuery->get_result()->fetch_assoc() ?? [];
+
+    $stmt = $conn->prepare("
+        SELECT fmr.member_resident_id, fmr.household_head_id, fmr.relationship,
+               CONCAT(r.first_name,' ',r.last_name) AS member_name,
+               CONCAT(hh.first_name,' ',hh.last_name) AS head_name
+        FROM family_member_requests fmr
+        JOIN residents r ON fmr.member_resident_id = r.resident_id
+        JOIN residents hh ON fmr.household_head_id = hh.resident_id
+        WHERE fmr.request_id=? AND r.is_archived=0 AND hh.is_archived=0
+    ");
+    $stmt->bind_param("i", $request_id);
+    $stmt->execute();
+    $req = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
 
     if ($req) {
-        $household_id = $conn->query("SELECT household_id FROM households WHERE head_resident_id = ".$req['household_head_id'])->fetch_assoc()['household_id'] ?? 0;
-        if ($household_id) {
-            $conn->query("UPDATE residents SET household_id = $household_id WHERE resident_id = ".$req['member_resident_id']);
-            $conn->query("UPDATE family_member_requests SET status='approved' WHERE request_id='$request_id'");
+        $stmtHouse = $conn->prepare("SELECT household_id FROM households WHERE head_resident_id=?");
+        $stmtHouse->bind_param("i", $req['household_head_id']);
+        $stmtHouse->execute();
+        $household_id = $stmtHouse->get_result()->fetch_assoc()['household_id'] ?? 0;
+        $stmtHouse->close();
 
-            $full_name = $conn->query("SELECT CONCAT(first_name, ' ', last_name) AS name FROM residents WHERE resident_id=".$req['member_resident_id'])->fetch_assoc()['name'];
-            logActivity($conn, $user_id, 'Approve Family Member Request', "Approved family member request for $full_name");
-            sendNotification($conn, $req['member_resident_id'], "Ang iyong request na maging miyembro ng household ni ".$conn->query("SELECT CONCAT(first_name,' ',last_name) AS head_name FROM residents WHERE resident_id=".$req['household_head_id'])->fetch_assoc()['head_name']." ay na-approve.", "Family Member Request Approved");
+        if ($household_id) {
+            $stmtUpd = $conn->prepare("UPDATE residents SET household_id=? WHERE resident_id=?");
+            $stmtUpd->bind_param("ii", $household_id, $req['member_resident_id']);
+            $stmtUpd->execute();
+            $stmtUpd->close();
+
+            $stmtReq = $conn->prepare("UPDATE family_member_requests SET status='approved' WHERE request_id=?");
+            $stmtReq->bind_param("i", $request_id);
+            $stmtReq->execute();
+            $stmtReq->close();
+
+            logActivity($conn, $user_id, 'Approve Family Member Request', "Approved family member request for ".$req['member_name']);
+            sendNotification($conn, $req['member_resident_id'], "Ang iyong request na maging miyembro ng household ni ".$req['head_name']." ay na-approve.", "Family Member Request Approved");
 
             $_SESSION['success'] = "Family member request approved!";
         }
@@ -55,20 +84,37 @@ if (isset($_POST['approve_request'])) {
     exit();
 }
 
+// Reject request
 if (isset($_POST['reject_request'])) {
     $request_id = $_POST['request_id'];
-    $req = $conn->query("SELECT * FROM family_member_requests WHERE request_id=$request_id")->fetch_assoc();
+
+    $stmt = $conn->prepare("
+        SELECT fmr.member_resident_id, CONCAT(r.first_name,' ',r.last_name) AS member_name
+        FROM family_member_requests fmr
+        JOIN residents r ON fmr.member_resident_id = r.resident_id
+        WHERE fmr.request_id=? AND r.is_archived=0
+    ");
+    $stmt->bind_param("i", $request_id);
+    $stmt->execute();
+    $req = $stmt->get_result()->fetch_assoc();
+    $stmt->close();
+
     if ($req) {
-        $conn->query("UPDATE family_member_requests SET status='rejected' WHERE request_id='$request_id'");
-        $full_name = $conn->query("SELECT CONCAT(first_name, ' ', last_name) AS name FROM residents WHERE resident_id=".$req['member_resident_id'])->fetch_assoc()['name'];
-        logActivity($conn, $user_id, 'Reject Family Member Request', "Rejected family member request for $full_name");
+        $stmtUpd = $conn->prepare("UPDATE family_member_requests SET status='rejected' WHERE request_id=?");
+        $stmtUpd->bind_param("i", $request_id);
+        $stmtUpd->execute();
+        $stmtUpd->close();
+
+        logActivity($conn, $user_id, 'Reject Family Member Request', "Rejected family member request for ".$req['member_name']);
         sendNotification($conn, $req['member_resident_id'], "Ang iyong request na maging miyembro ng household ay na-reject.", "Family Member Request Rejected");
+
         $_SESSION['success'] = "Family member request rejected!";
     }
     header("Location: household_member_requests.php");
     exit();
 }
 
+// Pagination
 $limit = 10;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $offset = ($page - 1) * $limit;
@@ -77,20 +123,25 @@ $totalQuery = $conn->query("SELECT COUNT(*) as total FROM family_member_requests
 $totalRows = $totalQuery->fetch_assoc()['total'];
 $totalPages = ceil($totalRows / $limit);
 
-$requestsQuery = $conn->query("
+$stmtReqs = $conn->prepare("
     SELECT fmr.*, 
-           r.first_name AS member_first_name, 
-           r.last_name AS member_last_name,
-           hh.first_name AS head_first_name,
-           hh.last_name AS head_last_name
+           r.first_name AS member_first_name, r.last_name AS member_last_name,
+           hh.first_name AS head_first_name, hh.last_name AS head_last_name,
+           hh.resident_address AS head_address
     FROM family_member_requests fmr
     LEFT JOIN residents r ON fmr.member_resident_id = r.resident_id
     LEFT JOIN residents hh ON fmr.household_head_id = hh.resident_id
-    WHERE fmr.status='pending' AND r.is_archived = 0 AND hh.is_archived = 0
+    WHERE fmr.status='pending' AND r.is_archived=0 AND hh.is_archived=0
     ORDER BY fmr.date_created DESC
-    LIMIT $offset, $limit
+    LIMIT ?, ?
 ");
+
+$stmtReqs->bind_param("ii", $offset, $limit);
+$stmtReqs->execute();
+$requestsQuery = $stmtReqs->get_result();
+$stmtReqs->close();
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -212,45 +263,47 @@ $requestsQuery = $conn->query("
   <div class="max-w-7xl mx-auto">
     <div class="bg-white p-6 rounded-2xl shadow-lg overflow-x-auto">
       <table class="min-w-full divide-y divide-gray-200" id="householdMembersTable">
-        <thead class="bg-gray-100">
-          <tr>
-            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Member Name</th>
-            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Relationship</th>
-            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Birthdate</th>
-            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Requested By</th>
-            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Request Date</th>
-            <th class="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-          </tr>
-        </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-            <?php if($requestsQuery->num_rows > 0): ?>
-                <?php while($req = $requestsQuery->fetch_assoc()): ?>
-                <tr class="hover:bg-gray-50 transition cursor-pointer">
-                    <td class="px-6 py-4"><?= htmlspecialchars($req['member_first_name'].' '.$req['member_last_name']) ?></td>
-                    <td class="px-6 py-4"><?= htmlspecialchars($req['relationship']) ?></td>
-                    <td class="px-6 py-4"><?= date('F j, Y', strtotime($req['birthdate'])) ?></td>
-                    <td class="px-6 py-4"><?= htmlspecialchars($req['head_first_name'].' '.$req['head_last_name']) ?></td>
-                    <td class="px-6 py-4"><?= date('F j, Y', strtotime($req['date_created'])) ?></td>
-                    <td class="px-6 py-4 text-center flex justify-center gap-2">
-                    <form method="POST" class="inline">
-                        <input type="hidden" name="request_id" value="<?= $req['request_id'] ?>">
-                        <button type="submit" name="approve_request" class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm">Approve</button>
-                    </form>
-                    <form method="POST" class="inline">
-                        <input type="hidden" name="request_id" value="<?= $req['request_id'] ?>">
-                        <button type="submit" name="reject_request" class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition text-sm">Reject</button>
-                    </form>
-                    </td>
-                </tr>
-                <?php endwhile; ?>
-            <?php else: ?>
-                <tr>
-                <td colspan="6" class="px-6 py-4 text-center text-gray-400">No pending household member requests.</td>
-                </tr>
-            <?php endif; ?>
-            </tbody>
-
+          <thead class="bg-gray-100">
+              <tr>
+                  <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Member Name</th>
+                  <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Relationship</th>
+                  <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Birthdate</th>
+                  <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Requested By</th>
+                  <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Head Address</th>
+                  <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Request Date</th>
+                  <th class="px-6 py-3 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+              </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+              <?php if($requestsQuery->num_rows > 0): ?>
+                  <?php while($req = $requestsQuery->fetch_assoc()): ?>
+                  <tr class="hover:bg-gray-50 transition cursor-pointer">
+                      <td class="px-6 py-4"><?= htmlspecialchars($req['member_first_name'].' '.$req['member_last_name']) ?></td>
+                      <td class="px-6 py-4"><?= htmlspecialchars($req['relationship']) ?></td>
+                      <td class="px-6 py-4"><?= date('F j, Y', strtotime($req['birthdate'])) ?></td>
+                      <td class="px-6 py-4"><?= htmlspecialchars($req['head_first_name'].' '.$req['head_last_name']) ?></td>
+                      <td class="px-6 py-4"><?= htmlspecialchars($req['head_address']) ?></td>
+                      <td class="px-6 py-4"><?= date('F j, Y', strtotime($req['date_created'])) ?></td>
+                      <td class="px-6 py-4 text-center flex justify-center gap-2">
+                          <form method="POST" class="inline">
+                              <input type="hidden" name="request_id" value="<?= $req['request_id'] ?>">
+                              <button type="submit" name="approve_request" class="px-3 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition text-sm">Approve</button>
+                          </form>
+                          <form method="POST" class="inline">
+                              <input type="hidden" name="request_id" value="<?= $req['request_id'] ?>">
+                              <button type="submit" name="reject_request" class="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition text-sm">Reject</button>
+                          </form>
+                      </td>
+                  </tr>
+                  <?php endwhile; ?>
+              <?php else: ?>
+                  <tr>
+                      <td colspan="7" class="px-6 py-4 text-center text-gray-400">No pending household member requests.</td>
+                  </tr>
+              <?php endif; ?>
+          </tbody>
       </table>
+
 
       <?php if($totalPages > 1): ?>
         <div class="flex justify-center mt-6 space-x-2">

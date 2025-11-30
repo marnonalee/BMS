@@ -1,5 +1,6 @@
 <?php
 session_start();
+include 'resident_header.php';
 if (!isset($_SESSION["user_id"]) || $_SESSION["role"] !== "resident") {
     header("Location: ../../index.php");
     exit();
@@ -65,6 +66,29 @@ if ($edit_id) {
         $edit_id = null;
     }
     $editQuery->close();
+}
+$gcashQuery = $conn->query("SELECT gcash_name, gcash_number, gcash_qr FROM system_settings LIMIT 1");
+$gcashData = $gcashQuery->fetch_assoc();
+$gcashName = $gcashData['gcash_name'] ?? '';
+$gcashNumber = $gcashData['gcash_number'] ?? '';
+$gcashQR = $gcashData['gcash_qr'] ?? '';
+function maskName($name) {
+    $parts = explode(' ', $name);
+    $maskedParts = [];
+
+    foreach ($parts as $part) {
+        $len = strlen($part);
+        if ($len <= 2) {
+            $maskedParts[] = str_repeat('*', $len); 
+        } else {
+            $first = $part[0];
+            $last = $part[$len-1];
+            $middle = str_repeat('*', $len-2);
+            $maskedParts[] = $first . $middle . $last;
+        }
+    }
+
+    return implode(' ', $maskedParts);
 }
 
 $can_request = !$edit_id;
@@ -262,14 +286,7 @@ if (empty($error)) {
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 font-sans">
-<header class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md p-4 rounded-b-lg">
-    <div class="container mx-auto flex justify-between items-center">
-        <h1 class="text-xl font-bold">Request Barangay ID</h1>
-        <a href="certificate/all_requests.php" class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium bg-white text-blue-600 hover:bg-gray-100 transition">
-            <i class="fas fa-arrow-left"></i> Back
-        </a>
-    </div>
-</header>
+
 <main class="flex justify-center mt-10 px-6 mb-10">
     <div class="w-full max-w-6xl">
         <!-- Error Message -->
@@ -280,10 +297,14 @@ if (empty($error)) {
         <?php endif; ?>
 
         <?php if($can_request || isset($edit_id)): ?>
+              <div class="mb-6 flex items-center space-x-2 text-gray-500 text-sm">
+                <a href="dashboard.php" class="hover:underline">Dashboard</a>
+                <span class="text-gray-300">/</span>
+                <span class="font-semibold text-gray-700"> Barangay ID</span>
+            </div>
         <form method="POST" enctype="multipart/form-data" class="bg-white p-10 rounded-2xl shadow-lg space-y-6" id="barangayForm">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-                <!-- Personal Information -->
                 <div>
                     <label class="block font-semibold mb-2">Apelyido</label>
                     <input type="text" value="<?= htmlspecialchars($last_name) ?>" readonly class="w-full border p-4 rounded-lg bg-gray-100">
@@ -313,25 +334,23 @@ if (empty($error)) {
                     <input type="text" name="sex" value="<?= htmlspecialchars($sex) ?>" readonly class="w-full border p-4 rounded-lg bg-gray-100">
                 </div>
                 <div>
-                    <label class="block font-semibold mb-2 required">Uri ng Paninirahan</label>
+                    <label class="block font-semibold mb-2">Uri ng Paninirahan</label>
                     <select name="nature_of_residency" required class="w-full border p-4 rounded-lg">
                         <option value="">-- Piliin --</option>
-                        <option value="Resident" <?= (isset($nature_of_residency) && $nature_of_residency=='Resident')?'selected':'' ?>>Residente</option>
-                        <option value="Tenant" <?= (isset($nature_of_residency) && $nature_of_residency=='Tenant')?'selected':'' ?>>Uupa</option>
+                        <option value="Resident" <?= (isset($nature_of_residency) && $nature_of_residency=='Resident')?'selected':'' ?>>Resident</option>
+                        <option value="Tenant" <?= (isset($nature_of_residency) && $nature_of_residency=='Tenant')?'selected':'' ?>>Tenant</option>
                     </select>
                 </div>
 
-                <!-- Emergency Contact -->
                 <div>
                     <label class="block font-semibold mb-2">Taong Maaaring Kontakin</label>
                     <input type="text" name="person_to_contact" required value="<?= htmlspecialchars($emergency_name ?? '') ?>" class="w-full border p-4 rounded-lg">
                 </div>
                 <div>
                     <label class="block font-semibold mb-2">Numero ng Kontak</label>
-                    <input type="text" name="contact_number_person" required value="<?= htmlspecialchars($emergency_contact ?? '') ?>" class="w-full border p-4 rounded-lg" placeholder="11-digit na numero">
+                    <input type="text" name="contact_number_person" required value="<?= htmlspecialchars($emergency_contact ?? '') ?>" class="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none py-2 rounded bg-transparent" placeholder="09XXXXXXXXX" maxlength="11" pattern="09[0-9]{9}" title="Enter a valid Philippine mobile number starting with 09" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
                 </div>
 
-                <!-- Supporting Document -->
                 <div class="md:col-span-2">
                     <label class="block font-semibold mb-2">Suportadong Dokumento</label>
                     <?php if(!empty($supporting_document_existing)): ?>
@@ -340,7 +359,6 @@ if (empty($error)) {
                     <input type="file" name="supporting_document" accept=".jpg,.jpeg,.png,.pdf" class="w-full border p-4 rounded-lg">
                 </div>
 
-                <!-- Picture -->
                 <div>
                     <label class="block font-semibold mb-2">1x1 na Larawan</label>
                     <?php if(!empty($picture_existing)): ?>
@@ -349,7 +367,6 @@ if (empty($error)) {
                     <input type="file" name="picture" accept=".jpg,.jpeg,.png" class="w-full border p-4 rounded-lg">
                 </div>
 
-                <!-- Signature -->
                 <div>
                     <label class="block font-semibold mb-2">Pirma</label>
                     <?php if(!empty($signature_existing)): ?>
@@ -358,18 +375,31 @@ if (empty($error)) {
                     <input type="file" name="signature" accept=".jpg,.jpeg,.png" class="w-full border p-4 rounded-lg">
                 </div>
 
-                <!-- Payment -->
                 <div class="md:col-span-2 bg-gray-50 p-6 rounded-xl">
-                    <h3 class="font-semibold mb-2">Bayad (₱50)</h3>
+                    <h3 class="font-semibold mb-2">Bayad (₱120)</h3>
                     <p class="mb-2">I-scan ang GCash QR Code at i-upload ang screenshot bilang patunay ng pagbabayad.</p>
-                    <img src="img/gcash-qr.png" alt="GCash QR" class="w-32 h-32 mb-2">
+
+                    <?php
+                        $gcashPath = !empty($gcashQR) ? "../" . $gcashQR : '';
+                    ?>
+                    <?php if(!empty($gcashQR)): ?>
+                        <img src="<?= htmlspecialchars($gcashPath) ?>" alt="GCash QR" class="w-32 h-32 mb-2 border rounded cursor-pointer" onclick="openQRModal('<?= htmlspecialchars($gcashPath) ?>')">
+                    <?php else: ?>
+                        <p class="text-red-500">GCash QR code not available.</p>
+                    <?php endif; ?>
+
+                    <?php if(!empty($gcashName) && !empty($gcashNumber)): ?>
+                        <p class="text-sm text-gray-700 mb-2">Name: <?= htmlspecialchars(maskName($gcashName)) ?></p>
+                        <p class="text-sm text-gray-700 mb-2">Number: <?= htmlspecialchars($gcashNumber) ?></p>
+                    <?php endif; ?>
+
+
                     <?php if(!empty($payment_proof_existing)): ?>
                         <p class="text-sm text-gray-600 mb-1">Kasulukuyang file: <a href="uploads/<?= htmlspecialchars($payment_proof_existing) ?>" target="_blank"><?= htmlspecialchars($payment_proof_existing) ?></a></p>
                     <?php endif; ?>
                     <input type="file" name="payment_proof" id="payment_proof" accept=".jpg,.jpeg,.png,.pdf" class="w-full border p-4 rounded-lg" <?= isset($edit_id) ? '' : 'required' ?>>
                 </div>
 
-                <!-- Submit Button -->
                 <div class="md:col-span-2 flex gap-4">
                     <button type="button" id="submitBtn" onclick="confirmSubmit()" class="w-full py-4 rounded-2xl font-semibold flex justify-center items-center gap-3 opacity-50 cursor-not-allowed" style="background-color: <?= $themeColor ?>; color: #fff;" disabled>
                         <i class="fas fa-paper-plane"></i> <?= isset($edit_id) ? 'I-update ang Request' : 'Isumite ang Request' ?>
@@ -378,6 +408,7 @@ if (empty($error)) {
 
             </div>
         </form>
+
         <?php endif; ?>
     </div>
 </main>
@@ -390,6 +421,23 @@ if (empty($error)) {
     </div>
 </div>
 <script>
+function openQRModal(imgSrc) {
+    const modal = document.getElementById("universalModal");
+    document.getElementById("modalTitle").innerText = "GCash QR Code";
+
+    // Medium-size QR
+    document.getElementById("modalMessage").innerHTML = `
+        <div class="flex justify-center">
+            <img src="${imgSrc}" class="max-w-xs max-h-xs rounded-lg border">
+        </div>
+    `;
+
+    document.getElementById("modalButtons").innerHTML = `
+        <button onclick="closeModal()" class="px-4 py-2 rounded text-white" style="background-color: <?= $themeColor ?>;">Close</button>
+    `;
+    modal.classList.remove("hidden");
+}
+
 const submitBtn = document.getElementById('submitBtn');
 const form = document.getElementById('barangayForm');
 

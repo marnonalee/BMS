@@ -244,89 +244,107 @@ $requestsQuery = $conn->query("
     <h2 class="text-2xl font-bold text-gray-700">Profile Update Request</h2>
 </header>
 
+<main class="flex-1 overflow-y-auto p-6 bg-gray-100">
+    <div class="max-w-7xl mx-auto space-y-6">
 
-  <main class="flex-1 overflow-y-auto p-6">
+        <?php if($requestsQuery->num_rows > 0): ?>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <?php while($req = $requestsQuery->fetch_assoc()): ?>
+                    <?php
+                    $residentQuery = $conn->prepare("SELECT * FROM residents WHERE resident_id = ?");
+                    $residentQuery->bind_param("i", $req['resident_id']);
+                    $residentQuery->execute();
+                    $current = $residentQuery->get_result()->fetch_assoc();
 
-<div class="max-w-6xl mx-auto space-y-6">
-    <?php if($requestsQuery->num_rows > 0): ?>
-        <?php while($req = $requestsQuery->fetch_assoc()): ?>
-            <?php
-            $residentQuery = $conn->prepare("SELECT * FROM residents WHERE resident_id = ?");
-            $residentQuery->bind_param("i", $req['resident_id']);
-            $residentQuery->execute();
-            $current = $residentQuery->get_result()->fetch_assoc();
+                    $fields = [
+                        'alias'=>'Alias',
+                        'suffix'=>'Suffix',
+                        'resident_address'=>'Address',
+                        'birth_place'=>'Birth Place',
+                        'street'=>'Street',
+                        'citizenship'=>'Citizenship',
+                        'voter_status'=>'Voter Status',
+                        'employment_status'=>'Employment Status',
+                        'contact_number'=>'Contact Number',
+                        'religion'=>'Religion',
+                        'profession_occupation'=>'Profession/Occupation',
+                        'educational_attainment'=>'Education',
+                        'education_details'=>'Education Details',
+                        'is_family_head'=>'Family Head'
+                    ];
 
-          $fields = [
-            'alias'=>'Alias',
-            'suffix'=>'Suffix',
-            'resident_address'=>'Address',
-            'birth_place'=>'Birth Place',
-            'street'=>'Street',
-            'citizenship'=>'Citizenship',
-            'voter_status'=>'Voter Status',
-            'employment_status'=>'Employment Status',
-            'contact_number'=>'Contact Number',
-            'religion'=>'Religion',
-            'profession_occupation'=>'Profession/Occupation',
-            'educational_attainment'=>'Education',
-            'education_details'=>'Education Details',
-            'is_family_head'=>'Family Head'
-        ];
+                    $changes = [];
+                    foreach($fields as $key=>$label){
+                        $currentVal = $current[$key] ?? '';
+                        $newVal = $req[$key] ?? '';
+                        if($currentVal !== $newVal){
+                            $changes[] = ['label'=>$label,'current'=>$currentVal,'new'=>$newVal];
+                        }
+                    }
+                    ?>
+                    <div class="bg-white p-5 rounded-2xl shadow-md hover:shadow-lg transition-shadow flex flex-col justify-between">
+                        <div>
+                            <h3 class="text-lg font-semibold text-gray-800"><?= htmlspecialchars($req['first_name'].' '.$req['last_name']) ?></h3>
+                            <p class="text-gray-500 mt-1"><?= htmlspecialchars($req['resident_address']) ?></p>
+                            <p class="text-gray-400 text-sm mt-1">Requested: <?= date('F j, Y', strtotime($req['created_at'])) ?></p>
+                        </div>
 
-
-            $changes = [];
-            foreach($fields as $key=>$label){
-                $currentVal = $current[$key] ?? '';
-                $newVal = $req[$key] ?? '';
-                if($currentVal !== $newVal){
-                    $changes[] = ['label'=>$label,'current'=>$currentVal,'new'=>$newVal];
-                }
-            }
-            ?>
-            <div class="bg-white p-6 rounded-2xl shadow-md flex flex-col md:flex-row justify-between items-start md:items-center hover:shadow-lg transition-shadow duration-300">
-                <div class="flex-1">
-                    <h3 class="text-lg font-semibold text-gray-800"><?= htmlspecialchars($req['first_name'].' '.$req['last_name']) ?></h3>
-                    <p class="text-gray-500 mt-1"><?= htmlspecialchars($req['resident_address']) ?></p>
-                    <p class="text-gray-400 text-sm mt-1">Request Date: <?= date('F j, Y', strtotime($req['created_at'])) ?></p>
-                </div>
-                <div class="mt-4 md:mt-0 flex flex-col sm:flex-row gap-2">
-                    <?php if(count($changes) > 0): ?>
-                        <button onclick="openModal('modal<?= $req['request_id'] ?>')" class="px-5 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">View Changes</button>
-                    <?php endif; ?>
-                    <form method="POST" class="inline">
-                        <input type="hidden" name="request_id" value="<?= $req['request_id'] ?>">
-                        <button type="submit" name="approve_request" class="px-5 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">Approve</button>
-                    </form>
-                    <form method="POST" class="inline">
-                        <input type="hidden" name="request_id" value="<?= $req['request_id'] ?>">
-                        <button type="submit" name="reject_request" class="px-5 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">Reject</button>
-                    </form>
-                </div>
-
-                <div id="modal<?= $req['request_id'] ?>" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
-                    <div class="bg-white w-11/12 md:w-2/3 p-6 rounded-2xl max-h-[85vh] overflow-y-auto relative shadow-2xl">
-                        <button onclick="closeModal('modal<?= $req['request_id'] ?>')" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
-                        <h3 class="text-2xl font-bold mb-2 text-gray-800"><?= htmlspecialchars($req['first_name'].' '.$req['last_name']) ?></h3>
-                        <p class="text-gray-500 mb-6"><?= htmlspecialchars($req['resident_address']) ?></p>
-                        <?php foreach($changes as $change): ?>
-                            <div class="border rounded-lg p-4 mb-3 bg-red-50 border-red-300">
-                                <p class="text-gray-500 text-sm mb-1 font-medium"><?= $change['label'] ?>:</p>
-                                <p class="text-gray-700 text-sm">Current: <span class="font-medium"><?= htmlspecialchars($change['current']) ?: '-' ?></span></p>
-                                <p class="text-red-600 font-semibold">Requested: <?= htmlspecialchars($change['new']) ?: '-' ?></p>
-                            </div>
-                        <?php endforeach; ?>
-                        <?php if(count($changes) === 0): ?>
-                            <p class="text-gray-600 text-center py-4">No changes detected.</p>
+                        <?php if(count($changes) > 0 || !empty($req['resident_id_file'])): ?>
+                            <button onclick="openModal('modal<?= $req['request_id'] ?>')" class="mt-4 w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">View Changes</button>
                         <?php endif; ?>
+
+                       <div id="modal<?= $req['request_id'] ?>" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+                            <div class="bg-white w-11/12 md:w-2/3 p-6 rounded-2xl max-h-[85vh] overflow-y-auto relative shadow-2xl flex flex-col gap-4">
+                                <button onclick="closeModal('modal<?= $req['request_id'] ?>')" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
+                                <h3 class="text-2xl font-bold text-gray-800"><?= htmlspecialchars($req['first_name'].' '.$req['last_name']) ?></h3>
+                                <p class="text-gray-500"><?= htmlspecialchars($req['resident_address']) ?></p>
+                                <p class="text-gray-400 text-sm mb-4">Requested on: <?= date('F j, Y', strtotime($req['created_at'])) ?></p>
+
+                                <div class="flex flex-col gap-3">
+                                    <?php if(count($changes) > 0): ?>
+                                        <?php foreach($changes as $change): ?>
+                                            <div class="border rounded-lg p-4 bg-red-50 border-red-300">
+                                                <p class="text-gray-500 text-sm mb-1 font-medium"><?= $change['label'] ?>:</p>
+                                                <p class="text-gray-700 text-sm">Current: <span class="font-medium"><?= htmlspecialchars($change['current']) ?: '-' ?></span></p>
+                                                <p class="text-red-600 font-semibold">Requested: <?= htmlspecialchars($change['new']) ?: '-' ?></p>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <p class="text-gray-600 text-center py-4">No changes detected.</p>
+                                    <?php endif; ?>
+
+                                    <?php if(!empty($req['resident_id_file'])): ?>
+                                        <div>
+                                            <p class="text-gray-500 text-sm mb-1 font-medium">Proof / Uploaded ID:</p>
+                                            <img src="../../resident/uploads/<?= htmlspecialchars($req['resident_id_file']) ?>" alt="Proof File" class="w-full max-h-96 object-contain border rounded-lg shadow-sm">
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+
+                                <!-- Approve/Reject Buttons -->
+                                <div class="mt-4 flex flex-col md:flex-row gap-2">
+                                    <form method="POST" class="flex-1">
+                                        <input type="hidden" name="request_id" value="<?= $req['request_id'] ?>">
+                                        <button type="submit" name="approve_request" class="w-full px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">Approve</button>
+                                    </form>
+                                    <form method="POST" class="flex-1">
+                                        <input type="hidden" name="request_id" value="<?= $req['request_id'] ?>">
+                                        <button type="submit" name="reject_request" class="w-full px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition">Reject</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+
                     </div>
-                </div>
+                <?php endwhile; ?>
             </div>
-        <?php endwhile; ?>
-    <?php else: ?>
-        <p class="text-gray-500 text-center py-12 text-lg">No pending profile update requests.</p>
-    <?php endif; ?>
-</div>
+        <?php else: ?>
+            <p class="text-gray-500 text-center py-12 text-lg">No pending profile update requests.</p>
+        <?php endif; ?>
+    </div>
 </main>
+
 </div>
 </div>
 

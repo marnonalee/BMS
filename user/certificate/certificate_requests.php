@@ -5,18 +5,27 @@ if (!isset($_SESSION["user_id"])) {
     exit();
 }
 include '../db.php';
+include 'send_certificate_email.php';
+
+// Get logged-in user
 $user_id = $_SESSION["user_id"];
 $userQuery = $conn->query("SELECT * FROM users WHERE id = '$user_id'");
 $user = $userQuery->fetch_assoc();
 $role = $user['role'];
-$successMsg = '';
-$errorMsg = '';
+
+// Pagination
 $perPage = isset($_GET['perPage']) ? (int)$_GET['perPage'] : 50;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
-$start = ($page-1)*$perPage;
+$start = ($page - 1) * $perPage;
+
+// Archive old certificates
 $conn->query("UPDATE generated_certificates SET is_archived = 1 WHERE is_archived = 0 AND date_generated <= DATE_SUB(NOW(), INTERVAL 7 DAY)");
+
+// Total requests
 $totalRequests = $conn->query("SELECT COUNT(*) AS cnt FROM certificate_requests")->fetch_assoc()['cnt'];
 $totalPages = ceil($totalRequests / $perPage);
+
+// Fetch requests
 $requestsQuery = $conn->query("
     SELECT cr.*, r.first_name, r.last_name, r.birthdate, r.resident_address, r.email_address, cr.supporting_doc, ct.template_name
     FROM certificate_requests cr
@@ -25,63 +34,98 @@ $requestsQuery = $conn->query("
     ORDER BY cr.date_requested DESC
     LIMIT $start, $perPage
 ");
+
+// Helper functions
 function logActivity($conn, $user_id, $action, $description = null) {
     $stmt = $conn->prepare("INSERT INTO log_activity (user_id, action, description, created_at) VALUES (?, ?, ?, NOW())");
     $stmt->bind_param("iss", $user_id, $action, $description);
     $stmt->execute();
     $stmt->close();
 }
+
 function sendNotification($conn, $resident_id, $message, $title = "Certificate Request", $from_role = "system", $type = "certificate", $priority = "normal", $action_type = "updated") {
     $stmt = $conn->prepare("INSERT INTO notifications (resident_id, message, from_role, title, type, priority, action_type, is_read, sent_email, date_created) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, NOW())");
     $stmt->bind_param("issssss", $resident_id, $message, $from_role, $title, $type, $priority, $action_type);
     $stmt->execute();
     $stmt->close();
 }
-if(isset($_POST['update_status'])){
+
+if (isset($_POST['update_status'])) {
     $requestId = intval($_POST['request_id']);
-    $newStatus = $_POST['status'] === 'Approved' ? 'Ready for Pickup' : $_POST['status'];
+    $statusInput = $_POST['status'] ?? '';
+    $newStatus = $statusInput === 'Approved' ? 'Ready for Pickup' : $statusInput;
     $remarks = trim($_POST['remarks'] ?? '');
     if ($remarks === '') $remarks = 'No Issue';
+
     $reviewed_by = $_SESSION['user_id'] ?? 0;
     $date_reviewed = date('Y-m-d H:i:s');
-    $stmt = $conn->prepare("UPDATE certificate_requests SET status=?, remarks=?, date_reviewed=?, reviewed_by=? WHERE id=?");
+
+    // Update request status
+    $stmt = $conn->prepare("
+        UPDATE certificate_requests 
+        SET status = ?, remarks = ?, date_reviewed = ?, reviewed_by = ? 
+        WHERE id = ?
+    ");
     $stmt->bind_param("sssii", $newStatus, $remarks, $date_reviewed, $reviewed_by, $requestId);
     $stmt->execute();
     $stmt->close();
+
+    // Log activity
     $action = $newStatus === 'Ready for Pickup' ? 'Approved Certificate Request' : 'Rejected Certificate Request';
     $description = "Request ID $requestId was $newStatus. Remarks: $remarks";
     logActivity($conn, $reviewed_by, $action, $description);
-    $reqData = $conn->query("SELECT resident_id, template_id FROM certificate_requests WHERE id = $requestId")->fetch_assoc();
+
+    // Get resident info
+    $reqData = $conn->query("SELECT resident_id, purpose FROM certificate_requests WHERE id = $requestId")->fetch_assoc();
     $residentId = $reqData['resident_id'];
-    if($newStatus === 'Ready for Pickup'){
-        $templateId = $reqData['template_id'];
-        $generatedBy = $_SESSION['user_id'];
-        $generatedDate = date('Y-m-d H:i:s');
-        $fileName = "CERT_" . $requestId . "_" . time() . ".pdf";
-        $filePath = "../generated_certificates/" . $fileName;
-        $insertGen = $conn->prepare("INSERT INTO generated_certificates (request_id, resident_id, template_id, generated_file, generated_by, date_generated, status) VALUES (?, ?, ?, ?, ?, ?, 'Generated')");
-        $insertGen->bind_param("iiisss", $requestId, $residentId, $templateId, $fileName, $generatedBy, $generatedDate);
-        $insertGen->execute();
-        $insertGen->close();
-        $residentData = $conn->query("SELECT email_address, first_name, last_name FROM residents WHERE resident_id = $residentId")->fetch_assoc();
-        $fullName = $residentData['first_name'] . ' ' . $residentData['last_name'];
-        $issuedDate = date("F d, Y");
-        include 'send_certificate_email.php';
-        sendCertificateEmail($residentData['email_address'], $fullName, 'Your certificate is ready for pickup', $issuedDate, $filePath, $fileName);
-        sendNotification($conn, $residentId, "Ang iyong certificate request ay na-approve at handa na para sa pickup.", "Certificate Request Approved");
+    $purpose = $reqData['purpose'] ?? 'General';
+
+    $residentData = $conn->query("SELECT email_address, first_name, last_name FROM residents WHERE resident_id = $residentId")->fetch_assoc();
+    $fullName = $residentData['first_name'] . ' ' . $residentData['last_name'];
+    $issuedDate = date("F d, Y");
+
+    // Prepare PDF path (optional: pass null if you generate later)
+    $pdfPath = null;
+    $filename = $newStatus === 'Ready for Pickup' ? 'Certificate_Ready.pdf' : 'Certificate_Rejected.pdf';
+
+    // Send email via PHPMailer
+    sendCertificateEmail(
+        $residentData['email_address'],
+        $fullName,
+        $purpose,
+        $issuedDate,
+        $pdfPath,
+        $filename,
+        $residentId
+    );
+
+    // Send notification in system
+    if ($newStatus === 'Ready for Pickup') {
+        $notificationMessage = "Ang iyong certificate request ay na-approve at handa na para sa pickup.";
+        $notificationTitle = "Certificate Request Approved";
     } else {
-        sendNotification($conn, $residentId, "Ang iyong certificate request ay na-reject. Remarks: $remarks", "Certificate Request Rejected");
+        $notificationMessage = "Ang iyong certificate request ay na-reject. Remarks: $remarks";
+        $notificationTitle = "Certificate Request Rejected";
     }
+
+    sendNotification(
+        $conn,
+        $residentId,
+        $notificationMessage,
+        $notificationTitle
+    );
+
     header("Location: certificate_requests.php");
     exit;
 }
+
+// System settings
 $settingsQuery = $conn->query("SELECT barangay_name, system_logo FROM system_settings LIMIT 1");
 $settings = $settingsQuery->fetch_assoc();
 $barangayName = $settings['barangay_name'] ?? 'Barangay Name';
 $systemLogo = $settings['system_logo'] ?? 'default-logo.png';
 $systemLogoPath = '../' . $systemLogo;
 ?>
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -206,7 +250,7 @@ $systemLogoPath = '../' . $systemLogo;
       </div>
   </header>
 
-  <main class="flex-1 overflow-y-auto p-6">
+<main class="flex-1 overflow-y-auto p-6">
 
       <div class="bg-white p-6 rounded-2xl shadow-lg overflow-x-auto">
         <div class="flex justify-start items-center mb-4 space-x-2">
@@ -288,7 +332,7 @@ $systemLogoPath = '../' . $systemLogo;
           <?php endif; ?>
         </div>
       </div>
-    </main>
+</main>
 
 
   </div>
@@ -308,6 +352,12 @@ $systemLogoPath = '../' . $systemLogo;
                 <span id="noDocText" class="text-gray-400">No document uploaded.</span>
             </div>
         </div>
+    </div>
+</div>
+<div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+    <div class="flex flex-col items-center">
+        <div class="w-16 h-16 border-4 border-white border-t-transparent rounded-full animate-spin mb-4"></div>
+        <div class="text-white text-lg font-semibold">Generating Certificate, please wait...</div>
     </div>
 </div>
 
@@ -375,6 +425,16 @@ $systemLogoPath = '../' . $systemLogo;
     });
 });
 
+document.addEventListener('DOMContentLoaded', () => {
+    const overlay = document.getElementById('loadingOverlay');
+    const statusForms = document.querySelectorAll('form input[name="update_status"]');
+
+    statusForms.forEach(button => {
+        button.closest('form').addEventListener('submit', () => {
+            overlay.classList.remove('hidden');
+        });
+    });
+});
 
 
 </script>

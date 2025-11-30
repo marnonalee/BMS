@@ -1,34 +1,58 @@
 <?php
 session_start();
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    http_response_code(403);
-    echo json_encode(['message' => 'Unauthorized']);
-    exit;
-}
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+ini_set('log_errors', 1);
+ini_set('error_log', __DIR__ . '/error_log.txt');
+
+header("Content-Type: application/json");
 
 include '../db.php';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $residentIds = $_POST['resident_ids'] ?? [];
+if (!isset($_POST['resident_ids']) || !is_array($_POST['resident_ids'])) {
+    echo json_encode(['success' => false, 'message' => 'No residents selected.']);
+    exit();
+}
 
-    if (empty($residentIds)) {
-        echo json_encode(['message' => 'No residents selected']);
-        exit;
+$residentIds = array_map('intval', $_POST['resident_ids']);
+$undeleted = [];
+
+foreach ($residentIds as $id) {
+    // Check if resident is a household head
+    $check = $conn->query("SELECT * FROM households WHERE head_resident_id = $id LIMIT 1");
+    if ($check && $check->num_rows > 0) {
+        $undeleted[] = $id;
+        continue; // skip deletion
     }
 
-    $residentIds = array_map('intval', $residentIds);
-    $idsStr = implode(',', $residentIds);
-
-    $sql = "DELETE FROM residents WHERE resident_id IN ($idsStr) AND is_archived=1";
-
-    if ($conn->query($sql)) {
-        echo json_encode(['message' => count($residentIds) . ' archived resident(s) deleted successfully.']);
-    } else {
-        http_response_code(500);
-        echo json_encode(['message' => 'Error deleting residents: ' . $conn->error]);
+    // Safe to delete
+    $delete = $conn->query("DELETE FROM residents WHERE resident_id = $id");
+    if (!$delete) {
+        error_log("SQL ERROR: " . $conn->error);
+        $undeleted[] = $id;
+        continue;
     }
+
+    // Log activity
+    $user_id = $_SESSION['user_id'] ?? 0;
+    $stmt = $conn->prepare("INSERT INTO log_activity (user_id, action, description) VALUES (?, ?, ?)");
+    $action = "Permanent Delete";
+    $description = "Permanently deleted resident ID: $id";
+    $stmt->bind_param("iss", $user_id, $action, $description);
+    $stmt->execute();
+    $stmt->close();
+}
+
+if (!empty($undeleted)) {
+    echo json_encode([
+        'success' => false,
+        'message' => 'Some residents could not be deleted because they are household heads.',
+        'undeleted_ids' => $undeleted
+    ]);
 } else {
-    http_response_code(405);
-    echo json_encode(['message' => 'Invalid request method']);
+    echo json_encode([
+        'success' => true,
+        'message' => 'Selected residents deleted successfully!'
+    ]);
 }
 ?>

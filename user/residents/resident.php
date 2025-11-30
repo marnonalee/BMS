@@ -1,5 +1,5 @@
 <?php
-include 'residents_functions.php';
+include 'residents_functions.php'; // <-- your helper functions
 
 $filter = $_GET['filter'] ?? '';
 $search = $_GET['search'] ?? '';
@@ -286,7 +286,7 @@ $systemLogoPath = '../' . $systemLogo;
       </div>
 
       <!-- Archived Residents Table -->
-     <div id="archivedContainer" class="hidden bg-white p-6 rounded-2xl shadow-lg mt-4 overflow-x-auto">
+      <div id="archivedContainer" class="hidden bg-white p-6 rounded-2xl shadow-lg mt-4 overflow-x-auto">
         <h3 class="text-lg font-semibold mb-4 text-red-600">Archived Residents</h3>
 
         <div class="flex items-center mb-4 space-x-2">
@@ -299,46 +299,49 @@ $systemLogoPath = '../' . $systemLogo;
           <span class="text-gray-600 font-medium">entries</span>
         </div>
 
-<table id="archivedResidentsTable" class="min-w-full divide-y divide-gray-200">
-  <thead class="bg-gray-100">
-    <tr>
-      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-        <input type="checkbox" id="selectAllArchived">
-      </th>
-      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sex</th>
-      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Age</th>
-      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Voter Status</th>
-      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Resident Address</th>
-      <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Street</th>
-    </tr>
-  </thead>
+        <table id="archivedResidentsTable" class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                <input type="checkbox" id="selectAllArchived">
+              </th>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sex</th>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Age</th>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Voter Status</th>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Resident Address</th>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Street</th>
+            </tr>
+          </thead>
 
-  <tbody class="bg-white divide-y divide-gray-200">
-    <?php if($archivedQuery->num_rows > 0): ?>
-      <?php while($arch = $archivedQuery->fetch_assoc()): ?>
-        <tr class="hover:bg-gray-50 cursor-pointer transition" data-resident='<?= json_encode($arch) ?>'>
-          <td class="px-6 py-4">
-            <input type="checkbox" class="selectArchived" value="<?= $arch['resident_id'] ?>">
-          </td>
-          <td class="px-6 py-4"><?= htmlspecialchars($arch['first_name'].' '.$arch['middle_name'].' '.$arch['last_name']) ?></td>
-          <td class="px-6 py-4"><?= htmlspecialchars($arch['sex']) ?></td>
-          <td class="px-6 py-4"><?= htmlspecialchars($arch['age']) ?></td>
-          <td class="px-6 py-4"><?= htmlspecialchars($arch['voter_status']) ?></td>
-          <td class="px-6 py-4"><?= htmlspecialchars($arch['resident_address']) ?></td>
-          <td class="px-6 py-4"><?= htmlspecialchars($arch['street']) ?></td>
-        </tr>
-      <?php endwhile; ?>
-    <?php else: ?>
-      <tr>
-        <td colspan="7" class="px-6 py-4 text-center text-gray-400">No archived residents.</td>
-      </tr>
-    <?php endif; ?>
-  </tbody>
-</table>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <?php if($archivedQuery->num_rows > 0): ?>
+              <?php while($arch = $archivedQuery->fetch_assoc()): ?>
+                <tr class="hover:bg-gray-50 cursor-pointer transition" data-resident='<?= json_encode($arch) ?>'>
+                  <td class="px-6 py-4">
+                    <input type="checkbox" class="selectArchived" value="<?= $arch['resident_id'] ?>">
+                  </td>
+                  <td class="px-6 py-4"><?= htmlspecialchars($arch['first_name'].' '.$arch['middle_name'].' '.$arch['last_name']) ?></td>
+                  <td class="px-6 py-4"><?= htmlspecialchars($arch['sex']) ?></td>
+                  <td class="px-6 py-4"><?= htmlspecialchars($arch['age']) ?></td>
+                  <td class="px-6 py-4"><?= htmlspecialchars($arch['voter_status']) ?></td>
+                  <td class="px-6 py-4"><?= htmlspecialchars($arch['resident_address']) ?></td>
+                  <td class="px-6 py-4"><?= htmlspecialchars($arch['street']) ?></td>
+                </tr>
+              <?php endwhile; ?>
+            <?php else: ?>
+              <tr>
+                <td colspan="7" class="px-6 py-4 text-center text-gray-400">No archived residents.</td>
+              </tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
 
-<button id="deleteSelectedArchived" class="mt-3 bg-red-500 text-white px-4 py-2 rounded">Delete Selected</button>
-
+        <!-- Action Buttons -->
+        <div class="mt-3 flex space-x-2">
+          <button id="restoreSelectedArchived" class="bg-emerald-500 text-white px-4 py-2 rounded hover:bg-emerald-600 transition">Restore Selected</button>
+          <button id="deleteSelectedArchived" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">Delete Selected</button>
+        </div>
       </div>
 
     </main>
@@ -651,39 +654,42 @@ $systemLogoPath = '../' . $systemLogo;
   </div>
 </div>
 
-
+<!-- Delete Resident Modal -->
 <div id="deleteConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-  <div class="bg-white rounded-xl p-6 w-80 text-center">
+  <div class="bg-white rounded-xl p-6 w-80 text-center shadow-lg">
     <h2 class="text-lg font-semibold mb-4">Delete Resident?</h2>
     <p class="mb-6 text-sm">Are you sure you want to delete this resident?</p>
     <div class="flex justify-center space-x-3">
-      <button id="cancelDelete" class="bg-gray-400 text-white px-4 py-2 rounded">Cancel</button>
+      <button id="cancelDelete" class="bg-gray-400 text-white px-4 py-2 rounded hover:bg-gray-500 transition">Cancel</button>
       <form method="POST">
         <input type="hidden" name="delete_resident_id" id="delete_resident_id">
-        <button type="submit" name="delete_resident" class="bg-red-500 text-white px-4 py-2 rounded">Delete</button>
+        <button type="submit" name="delete_resident" class="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">Delete</button>
       </form>
     </div>
   </div>
 </div>
+
+<!-- Success Modal -->
 <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-  <div class="bg-white rounded-xl p-6 w-80 text-center relative">
+  <div class="bg-white rounded-xl p-6 w-80 text-center shadow-lg relative">
     <button id="closeSuccessModal" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 material-icons">close</button>
     <span id="successIcon" class="material-icons text-4xl text-green-500">check_circle</span>
-    <p id="successMessage" class="mt-2">Success!</p>
-    <button id="okSuccessModal" class="mt-3 bg-emerald-500 text-white px-4 py-2 rounded">OK</button>
+    <p id="successMessage" class="mt-2 text-sm">Success!</p>
+    <button id="okSuccessModal" class="mt-3 bg-emerald-500 text-white px-4 py-2 rounded hover:bg-emerald-600 transition">OK</button>
   </div>
 </div>
 
-
-<div id="archivedResidentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
-  <div class="bg-white rounded-xl w-11/12 md:w-2/3 p-6 relative overflow-y-auto max-h-[90vh]">
+<!-- Archived Resident Modal -->
+<div id="archivedResidentModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50 overflow-y-auto">
+  <div class="bg-white rounded-xl w-11/12 md:w-2/3 p-6 relative max-h-[90vh] overflow-y-auto shadow-lg">
     <button id="closeArchivedModal" class="absolute top-4 right-4 text-gray-500 hover:text-gray-700 material-icons">close</button>
     <h2 class="text-xl font-semibold mb-3 text-red-600">Archived Resident Details</h2>
+
     <form id="archivedResidentForm">
       <input type="hidden" name="resident_id" id="archived_resident_id">
 
       <!-- Personal Info -->
-      <div class="mb-3">
+      <section class="mb-4">
         <h3 class="font-medium mb-2">Personal Info</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div><label>First Name</label><input type="text" id="arch_first_name" class="w-full border-b-2 py-1.5" readonly></div>
@@ -700,10 +706,10 @@ $systemLogoPath = '../' . $systemLogo;
           <div><label>Street</label><input type="text" id="arch_street" class="w-full border-b-2 py-1.5" readonly></div>
           <div><label>Citizenship</label><input type="text" id="arch_citizenship" class="w-full border-b-2 py-1.5" readonly></div>
         </div>
-      </div>
+      </section>
 
       <!-- Other Info -->
-      <div class="mt-3">
+      <section class="mb-4">
         <h3 class="font-medium mb-2">Other Info</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
           <div><label>Voter Status</label><input type="text" id="arch_voter_status" class="w-full border-b-2 py-1.5" readonly></div>
@@ -727,20 +733,14 @@ $systemLogoPath = '../' . $systemLogo;
             <label><input type="checkbox" id="arch_is_solo_parent" disabled> Solo Parent</label>
           </div>
         </div>
-      </div>
-
-      <div class="mt-3 flex justify-end space-x-2">
-        <button type="button" id="restoreResident" class="bg-emerald-500 text-white px-4 py-2 rounded">Restore</button>
-        <button type="button" id="deleteArchivedResident" class="bg-red-500 text-white px-4 py-2 rounded">Delete</button>
-      </div>
-
+      </section>
     </form>
   </div>
 </div>
 
 
 
-<script src="RESIDENT.js"></script>
+<script src="RE.js"></script>
 
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script>

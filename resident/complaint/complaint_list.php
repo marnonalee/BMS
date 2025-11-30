@@ -1,5 +1,6 @@
 <?php 
 session_start();
+include 'resident_header.php';
 if (!isset($_SESSION["user_id"]) || $_SESSION["role"] !== "resident") {
     header("Location: ../../index.php");
     exit();
@@ -30,12 +31,13 @@ $residentQuery->close();
 $blotterQuery = $conn->prepare(
     "SELECT * FROM blotter_records 
      WHERE complainant_id = ? 
-       AND TRIM(LOWER(status)) != 'cancelled'
+       AND TRIM(LOWER(status)) IN ('pending','open','investigating','approved','rejected','closed','cancelled')
      ORDER BY created_at DESC"
 );
 $blotterQuery->bind_param("i", $resident_id);
 $blotterQuery->execute();
 $blotterResult = $blotterQuery->get_result();
+
 ?>
 
 <!DOCTYPE html>
@@ -47,60 +49,69 @@ $blotterResult = $blotterQuery->get_result();
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 font-sans">
+<main class="container mx-auto mt-8 max-w-6xl px-4">
 
-<header class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md">
-    <div class="container mx-auto flex justify-between items-center p-4">
-        <h1 class="text-xl font-bold">Complaint Records</h1>
-        <a href="../dashboard.php" class="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded-lg hover:bg-gray-100"><i class="fas fa-arrow-left"></i> Back</a>
-    </div>
-</header>
+  <div class="mb-6 flex items-center space-x-2 text-gray-500 text-sm">
+    <a href="../dashboard.php" class="hover:underline">Dashboard</a>
+    <span class="text-gray-300">/</span>
+    <span class="font-semibold text-gray-700">My Complaints</span>
+  </div>
 
-<main class="container mx-auto px-4 py-6">
-    <?php if($blotterResult->num_rows > 0): ?>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            <?php $count = 1; ?>
-            <?php while($row = $blotterResult->fetch_assoc()): ?>
-                <div class="bg-white rounded-2xl shadow-lg hover:shadow-xl transition-shadow duration-300 overflow-hidden flex flex-col">
-                    <div class="bg-gradient-to-r from-blue-500 to-indigo-600 text-white p-4 flex justify-between items-center">
-                        <h2 class="text-lg font-semibold">Complaint #<?= $count ?></h2>
-                        <span class="px-3 py-1 rounded-full text-sm font-semibold
-                            <?php 
-                                $statusClass = strtolower($row['status']);
-                                echo $statusClass === 'pending' ? 'bg-yellow-100 text-yellow-800' : 
-                                     ($statusClass === 'approved' ? 'bg-green-100 text-green-800' : 
-                                     ($statusClass === 'rejected' ? 'bg-red-100 text-red-800' : 'bg-gray-100 text-gray-800')); 
-                            ?>">
-                            <?= htmlspecialchars($row['status']) ?>
-                        </span>
-                    </div>
-                    <div class="p-5 flex-1 flex flex-col justify-between">
-                        <div class="space-y-2 text-gray-700">
-                            <p><strong>Complainant:</strong> <?= htmlspecialchars($resident_name) ?></p>
-                            <p><strong>Victim:</strong> <?= htmlspecialchars($row['victim_name'] ?: 'N/A') ?></p>
-                            <p><strong>Nature:</strong> <?= htmlspecialchars($row['incident_nature']) ?></p>
-                            <p><strong>Location:</strong> <?= htmlspecialchars($row['incident_location']) ?></p>
-                            <p><strong>Incident Date & Time:</strong> <?= date("F j, Y, g:i A", strtotime($row['incident_datetime'])) ?></p>
-                            <p><strong>Date Filed:</strong> <?= date("F j, Y, g:i A", strtotime($row['created_at'])) ?></p>
-                        </div>
-                        <div class="mt-4 flex gap-2">
-                            <button class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 flex items-center justify-center gap-2"
-                                onclick="openResidentChat(<?= $row['blotter_id'] ?>, <?= $resident_id ?>)">
-                                <i class="fa-solid fa-message"></i> Message
-                            </button>
-                            <button class="flex-1 bg-red-600 text-white px-4 py-2 rounded-xl hover:bg-red-700 flex items-center justify-center gap-2"
-                                onclick="cancelComplaint(<?= $row['blotter_id'] ?>)">
-                                <i class="fa-solid fa-xmark"></i> Cancel
-                            </button>
-                        </div>
-                    </div>
-                </div>
-                <?php $count++; ?>
-            <?php endwhile; ?>
+  <?php if($blotterResult->num_rows > 0): ?>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <?php $count = 1; ?>
+      <?php while($row = $blotterResult->fetch_assoc()): ?>
+        <div class="bg-white rounded-2xl shadow-md overflow-hidden hover:shadow-xl transition">
+          <div class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-5 py-3 flex justify-between items-center">
+            <h2 class="text-md font-semibold">Complaint #<?= $count ?></h2>
+          <span class="px-2 py-1 rounded-full text-xs font-semibold 
+        <?php 
+            $status = strtolower($row['status']);
+            switch($status) {
+                case 'pending': echo 'bg-yellow-100 text-yellow-800'; break;
+                case 'open': echo 'bg-blue-100 text-blue-800'; break;
+                case 'investigating': echo 'bg-purple-100 text-purple-800'; break;
+                case 'approved': echo 'bg-green-100 text-green-800'; break;
+                case 'rejected': echo 'bg-red-100 text-red-800'; break;
+                case 'closed': echo 'bg-gray-200 text-gray-800'; break;
+                case 'cancelled': echo 'bg-gray-300 text-gray-700'; break;
+                default: echo 'bg-gray-100 text-gray-800'; break;
+            }
+        ?>">
+        <?= ucfirst($row['status']) ?>
+    </span>
+
+
+          </div>
+          <div class="p-4 space-y-2 text-gray-700 text-sm">
+            <p><span class="font-semibold">Complainant:</span> <?= htmlspecialchars($resident_name) ?></p>
+            <p><span class="font-semibold">Victim:</span> <?= htmlspecialchars($row['victim_name'] ?: 'N/A') ?></p>
+            <p><span class="font-semibold">Nature:</span> <?= htmlspecialchars($row['incident_nature']) ?></p>
+            <p><span class="font-semibold">Location:</span> <?= htmlspecialchars($row['incident_location']) ?></p>
+            <p><span class="font-semibold">Incident Date & Time:</span> <?= date("F j, Y, g:i A", strtotime($row['incident_datetime'])) ?></p>
+            <p><span class="font-semibold">Date Filed:</span> <?= date("F j, Y, g:i A", strtotime($row['created_at'])) ?></p>
+          </div>
+          <div class="px-4 py-3 border-t flex flex-wrap gap-2 justify-end">
+            <button class="bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-sm flex items-center gap-1"
+                onclick="openResidentChat(<?= $row['blotter_id'] ?>, <?= $resident_id ?>)">
+              <i class="fa-solid fa-message"></i> Message
+            </button>
+            <button class="bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700 text-sm flex items-center gap-1"
+                onclick="cancelComplaint(<?= $row['blotter_id'] ?>)">
+              <i class="fa-solid fa-xmark"></i> Cancel
+            </button>
+          </div>
         </div>
-    <?php else: ?>
-        <p class="text-center text-gray-500 mt-12 text-lg">You haven't submitted any complaints yet.</p>
-    <?php endif; ?>
+        <?php $count++; ?>
+      <?php endwhile; ?>
+    </div>
+  <?php else: ?>
+    <p class="text-center text-gray-500 mt-16 text-lg">You haven't submitted any complaints yet.</p>
+  <?php endif; ?>
+
 </main>
+
+
 
 <div id="residentChatModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
   <div class="bg-white w-full max-w-2xl rounded-2xl p-4 flex flex-col h-[600px] relative">

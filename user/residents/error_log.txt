@@ -1,2 +1,5 @@
 [27-Nov-2025 06:24:23 Europe/Berlin] PHP Notice:  session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\BMS\user\residents\residents_functions.php on line 2
 [28-Nov-2025 08:39:56 Europe/Berlin] PHP Notice:  session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\BMS\user\residents\residents_functions.php on line 2
+[29-Nov-2025 07:11:10 Europe/Berlin] PHP Notice:  session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\BMS\user\residents\residents_functions.php on line 2
+[29-Nov-2025 15:49:07 Europe/Berlin] PHP Notice:  session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\BMS\user\residents\residents_functions.php on line 2
+[29-Nov-2025 17:16:06 Europe/Berlin] PHP Notice:  session_start(): Ignoring session_start() because a session is already active in C:\xampp\htdocs\BMS\user\residents\residents_functions.php on line 2

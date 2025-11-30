@@ -60,43 +60,50 @@ $certificates = $certQuery ? $certQuery->fetch_all(MYSQLI_ASSOC) : [];
 .bg-theme { background-color: var(--theme-color); }
 .text-theme { color: var(--theme-color); }
 .bg-theme-gradient { background: linear-gradient(to right, var(--theme-color), #6366f1); }
+
+header { font-family: 'Inter', sans-serif; }
+header img { transition: transform 0.2s; }
+header img:hover { transform: scale(1.05); }
+button:hover { cursor: pointer; }
+
+header .container { max-width: 1280px; }
+header .dropdown { transition: all 0.3s ease-in-out; }
+header .dropdown a:hover { background-color: #f3f4f6; }
+
+#notifDropdown li:hover { background-color: #eef2ff; }
 </style>
 </head>
 <body class="bg-gray-100 font-sans">
 <header class="bg-theme-gradient text-white shadow-md sticky top-0 z-50">
   <div class="container mx-auto flex flex-col md:flex-row justify-between items-center p-4 space-y-2 md:space-y-0">
-    <!-- Logo & Barangay Info -->
+
     <div class="flex items-center w-full md:w-auto justify-between md:justify-start space-x-4">
       <div class="flex items-center space-x-4">
-        <img src="<?= !empty($settings['system_logo']) ? '../user/user_manage/uploads/' . htmlspecialchars(basename($settings['system_logo'])) : 'https://cdn-icons-png.flaticon.com/512/149/149071.png' ?>" 
-             alt="Logo" 
-             class="h-12 w-12 rounded-full border-2 border-white shadow-sm">
-        <div class="text-left">
-          <h3 class="font-bold text-lg sm:text-xl tracking-wide"><?= htmlspecialchars($settings['barangay_name'] ?? 'Barangay Name') ?></h3>
-          <p class="text-xs sm:text-sm text-white/80"><?= htmlspecialchars($settings['municipality'] ?? 'Municipality') ?>, <?= htmlspecialchars($settings['province'] ?? 'Province') ?></p>
-        </div>
-      </div>
+<img src="<?= !empty($settings['system_logo']) ? '../user/user_manage/uploads/' . htmlspecialchars(basename($settings['system_logo'])) : 'https://cdn-icons-png.flaticon.com/512/149/149071.png' ?>" 
+     alt="Logo" 
+     class="h-14 w-14 rounded-full border-2 border-white shadow-lg bg-white p-1">
 
-      <!-- Language Toggle -->
-      <div class="flex items-center space-x-2 mt-2 md:mt-0">
-        <span class="text-white font-semibold">🌐</span>
-        <button id="lang-en" class="px-2 py-1 rounded hover:bg-white/30 text-white text-xs sm:text-sm">English</button>
-        <span class="text-white">|</span>
-        <button id="lang-tl" class="px-2 py-1 rounded hover:bg-white/30 text-white text-xs sm:text-sm">Filipino</button>
+        <div class="text-left">
+          <h3 class="font-extrabold text-lg sm:text-2xl tracking-wide">
+            <?= htmlspecialchars($settings['barangay_name'] ?? 'Barangay Name') ?>
+          </h3>
+          <p class="text-xs sm:text-sm text-white/80">
+            <?= htmlspecialchars($settings['municipality'] ?? 'Municipality') ?>, <?= htmlspecialchars($settings['province'] ?? 'Province') ?>
+          </p>
+        </div>
       </div>
     </div>
 
-    <!-- Notifications & Profile -->
+    <!-- Navigation & Profile -->
     <div class="flex items-center space-x-4 md:space-x-6 w-full md:w-auto justify-end mt-2 md:mt-0">
-      <!-- Notifications -->
       <div class="relative">
-        <button id="notifBell" class="relative p-2 rounded-full hover:bg-white/20">
+        <button id="notifBell" class="relative p-2 rounded-full hover:bg-white/20 transition duration-200">
           <i class="fas fa-bell text-xl sm:text-2xl"></i>
           <?php if($unreadCount > 0): ?>
-            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold text-white bg-red-500 rounded-full"><?= $unreadCount ?></span>
+            <span class="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold text-white bg-red-500 rounded-full shadow-md"><?= $unreadCount ?></span>
           <?php endif; ?>
         </button>
-        <div id="notifDropdown" class="hidden absolute right-0 sm:right-0 mt-2 w-full sm:w-80 bg-white shadow-xl rounded-xl overflow-hidden z-50 max-h-96 overflow-y-auto">
+        <div id="notifDropdown" class="hidden absolute right-0 mt-2 w-full sm:w-80 bg-white shadow-2xl rounded-xl overflow-hidden z-50 max-h-96 overflow-y-auto dropdown">
           <?php if(count($notifications) > 0): ?>
             <ul>
               <?php foreach($notifications as $notif): ?>
@@ -106,32 +113,33 @@ $certificates = $certQuery ? $certQuery->fetch_all(MYSQLI_ASSOC) : [];
                 </li>
               <?php endforeach; ?>
             </ul>
-            <a href="all_notifications.php" class="block text-center text-theme p-2 font-medium" data-i18n="view_all_notif">View All Notifications</a>
+            <a href="all_notifications.php" class="block text-center text-theme p-2 font-medium hover:underline">View All Notifications</a>
           <?php else: ?>
-            <p class="p-4 text-gray-500 text-center" data-i18n="no_notif">No notifications available</p>
+            <p class="p-4 text-gray-500 text-center">No notifications available</p>
           <?php endif; ?>
         </div>
       </div>
 
       <!-- Profile Dropdown -->
       <div class="relative">
-        <button id="profileBtn" class="flex items-center space-x-2 p-2 rounded-full hover:bg-white/20">
+        <button id="profileBtn" class="flex items-center space-x-2 p-2 rounded-full hover:bg-white/20 transition duration-200">
           <img src="<?= (!empty($resident['profile_pic']) && $resident['profile_pic'] != 'uploads/default.png') ? '../uploads/' . htmlspecialchars(basename($resident['profile_pic'])) : 'https://cdn-icons-png.flaticon.com/512/149/149071.png' ?>" 
-               class="h-10 w-10 rounded-full object-cover border-2 border-white shadow-sm">
+               class="h-10 w-10 rounded-full object-cover border-2 border-white shadow-md">
           <i class="fas fa-caret-down"></i>
         </button>
-        <div id="profileDropdown" class="hidden absolute right-0 mt-2 w-full sm:w-52 bg-white shadow-xl rounded-xl overflow-hidden z-50">
-          <a href="manage_profile.php" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700" data-i18n="edit_profile">
+        <div id="profileDropdown" class="hidden absolute right-0 mt-2 w-full sm:w-52 bg-white shadow-2xl rounded-xl overflow-hidden z-50 dropdown">
+          <a href="manage_profile.php" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 font-medium">
             <i class="fas fa-user mr-3"></i> Edit Profile
           </a>
-          <a href="account_settings.php" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700" data-i18n="account_settings">
+          <a href="account_settings.php" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 font-medium">
             <i class="fas fa-cog mr-3"></i> Account Settings
           </a>
-          <a href="../logout.php" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700" data-i18n="logout">
+          <a href="../logout.php" class="flex items-center px-4 py-2 hover:bg-gray-100 text-gray-700 font-medium">
             <i class="fas fa-sign-out-alt mr-3"></i> Logout
           </a>
         </div>
       </div>
+
     </div>
   </div>
 </header>
@@ -254,39 +262,63 @@ $certificates = $certQuery ? $certQuery->fetch_all(MYSQLI_ASSOC) : [];
     </div>
   </div>
 </div>
-
 <script>
 // Notifications & Profile dropdown
 const modal = document.getElementById('certificateModal');
 const btn = document.getElementById('requestCertificateBtn');
 const closeBtn = document.getElementById('closeModal');
 
-btn.addEventListener('click', () => { modal.classList.remove('hidden'); modal.classList.add('flex'); });
-closeBtn.addEventListener('click', () => { modal.classList.add('hidden'); modal.classList.remove('flex'); });
-window.addEventListener('click', e => { if(e.target === modal){ modal.classList.add('hidden'); modal.classList.remove('flex'); } });
+btn.addEventListener('click', () => { 
+    modal.classList.remove('hidden'); 
+    modal.classList.add('flex'); 
+});
+closeBtn.addEventListener('click', () => { 
+    modal.classList.add('hidden'); 
+    modal.classList.remove('flex'); 
+});
+window.addEventListener('click', e => { 
+    if(e.target === modal){ 
+        modal.classList.add('hidden'); 
+        modal.classList.remove('flex'); 
+    } 
+});
 
 const notifBell = document.getElementById('notifBell');
 const notifDropdown = document.getElementById('notifDropdown');
-notifBell.addEventListener('click', e => { e.stopPropagation(); notifDropdown.classList.toggle('hidden'); });
+notifBell.addEventListener('click', e => { 
+    e.stopPropagation(); 
+    notifDropdown.classList.toggle('hidden'); 
+});
 
 const profileBtn = document.getElementById('profileBtn');
 const profileDropdown = document.getElementById('profileDropdown');
-profileBtn.addEventListener('click', e => { e.stopPropagation(); profileDropdown.classList.toggle('hidden'); });
-
-document.addEventListener('click', e => {
-    if(!profileDropdown.contains(e.target) && e.target !== profileBtn){ profileDropdown.classList.add('hidden'); }
-    if(!notifDropdown.contains(e.target) && e.target !== notifBell){ notifDropdown.classList.add('hidden'); }
+profileBtn.addEventListener('click', e => { 
+    e.stopPropagation(); 
+    profileDropdown.classList.toggle('hidden'); 
 });
 
-// Certificate request confirm
+document.addEventListener('click', e => {
+    if(!profileDropdown.contains(e.target) && e.target !== profileBtn){ 
+        profileDropdown.classList.add('hidden'); 
+    }
+    if(!notifDropdown.contains(e.target) && e.target !== notifBell){ 
+        notifDropdown.classList.add('hidden'); 
+    }
+});
+
+// ===============================
+// CONFIRM REQUEST POPUP (FIXED)
+// ===============================
+
 let selectedUrl = "";
 const confirmModal = document.getElementById("confirmModal");
 const confirmTitle = document.getElementById("confirmTitle");
 const cancelConfirm = document.getElementById("cancelConfirm");
 const confirmProceed = document.getElementById("confirmProceed");
 
-document.querySelectorAll(".requestAction").forEach(btn=>{
-    btn.addEventListener("click", ()=>{
+// Open confirm popup
+document.querySelectorAll(".requestAction").forEach(btn => {
+    btn.addEventListener("click", () => {
         selectedUrl = btn.dataset.url;
         confirmTitle.textContent = "Request " + btn.dataset.name;
         confirmModal.classList.remove("hidden");
@@ -294,96 +326,28 @@ document.querySelectorAll(".requestAction").forEach(btn=>{
     });
 });
 
-cancelConfirm.addEventListener("click", ()=>{
+// Cancel button
+cancelConfirm.addEventListener("click", () => {
     confirmModal.classList.add("hidden");
     confirmModal.classList.remove("flex");
 });
 
-confirmProceed.addEventListener("click", ()=>{
-    window.location.href = selectedUrl;
+// Proceed button → redirect to request page
+confirmProceed.addEventListener("click", () => {
+    if (selectedUrl !== "") {
+        window.location.href = selectedUrl;
+    }
 });
 
-const translations = {
-  "en": {
-    "welcome": "Welcome, <?= htmlspecialchars($username) ?>!",
-    "dashboard_intro": "Your resident dashboard. Request certificates, file complaints, and manage your profile easily.",
-    "request_doc": "Request Document",
-    "request_doc_desc": "Request certificates or your Barangay ID.",
-    "request_now": "Request Now",
-    "file_complaint": "File Complaint",
-    "file_complaint_desc": "File your complaint and track it.",
-    "file_now": "File Now",
-    "manage_profile": "Manage Profile",
-    "manage_profile_desc": "Update your personal details.",
-    "edit_profile_btn": "Edit Profile",
-    "my_requests": "My Requests",
-    "certificate_requests": "Certificate Requests",
-    "certificate_requests_desc": "View your certificate requests.",
-    "view_requests": "View Requests",
-    "complaint_history": "Complaint History",
-    "complaint_history_desc": "Track your complaint updates.",
-    "view_complaints": "View Complaints",
-    "request_doc_modal": "Request Document",
-    "certificates": "Certificates",
-    "cert_desc": "Request this certificate easily.",
-    "barangay_id": "Barangay ID",
-    "request_barangay_id": "Request Barangay ID",
-    "request_barangay_id_desc": "Apply for your official Barangay ID.",
-    "confirm_modal_text": "Do you want to continue?",
-    "cancel_btn": "Cancel",
-    "confirm_btn": "Confirm",
-    "view_all_notif": "View All Notifications",
-    "no_notif": "No notifications available",
-    "edit_profile": "Edit Profile",
-    "account_settings": "Account Settings",
-    "logout": "Logout"
-  },
-  "tl": {
-    "welcome": "Kamusta, <?= htmlspecialchars($username) ?>!",
-    "dashboard_intro": "Dito mo makikita ang iyong dashboard. Madali kang makakakuha ng sertipiko, makapaghain ng reklamo, at maayos ang iyong profile.",
-    "request_doc": "Humiling ng Dokumento",
-    "request_doc_desc": "Humiling ng sertipiko o Barangay ID nang mabilis at madali.",
-    "request_now": "Humiling Ngayon",
-    "file_complaint": "Maghain ng Reklamo",
-    "file_complaint_desc": "Maghain ng reklamo at subaybayan ang progreso nito.",
-    "file_now": "Ihain Ngayon",
-    "manage_profile": "Ayusin ang Profile",
-    "manage_profile_desc": "I-update ang iyong personal na impormasyon.",
-    "edit_profile_btn": "I-edit ang Profile",
-    "my_requests": "Aking Mga Kahilingan",
-    "certificate_requests": "Mga Kahilingan ng Sertipiko",
-    "certificate_requests_desc": "Tingnan ang mga sertipikong iyong hiningi.",
-    "view_requests": "Tingnan",
-    "complaint_history": "Kasaysayan ng Reklamo",
-    "complaint_history_desc": "Subaybayan ang progreso ng iyong reklamo.",
-    "view_complaints": "Tingnan",
-    "request_doc_modal": "Humiling ng Dokumento",
-    "certificates": "Mga Sertipiko",
-    "cert_desc": "Madali kang makakakuha ng sertipikong ito.",
-    "barangay_id": "Barangay ID",
-    "request_barangay_id": "Humiling ng Barangay ID",
-    "request_barangay_id_desc": "Mag-apply para sa iyong opisyal na Barangay ID.",
-    "confirm_modal_text": "Sigurado ka ba na gusto mong magpatuloy?",
-    "cancel_btn": "Kanselahin",
-    "confirm_btn": "Kumpirmahin",
-    "view_all_notif": "Tingnan Lahat ng Notipikasyon",
-    "no_notif": "Wala pang notipikasyon",
-    "edit_profile": "I-edit ang Profile",
-    "account_settings": "Mga Setting ng Account",
-    "logout": "Mag-logout"
-  }
-};
-
-function translate(lang){
-  document.querySelectorAll('[data-i18n]').forEach(el=>{
-    const key = el.dataset.i18n;
-    if(translations[lang][key]) el.textContent = translations[lang][key];
-  });
-}
-
-document.getElementById('lang-en').addEventListener('click', ()=>translate('en'));
-document.getElementById('lang-tl').addEventListener('click', ()=>translate('tl'));
+// Hide modal when clicking outside
+window.addEventListener("click", (e) => {
+    if (e.target === confirmModal) {
+        confirmModal.classList.add("hidden");
+        confirmModal.classList.remove("flex");
+    }
+});
 </script>
+
 
 </body>
 </html>

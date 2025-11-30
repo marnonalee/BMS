@@ -145,6 +145,13 @@ if(isset($_POST['add_resident'])){
 
     if($result->num_rows > 0){
         $successMsg = "Duplicate resident found! Same name, birthdate, and address already exists.";
+          echo "<script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const addModal = document.getElementById('addResidentModal');
+            if(addModal) addModal.classList.remove('hidden');
+            showResidentModalMessage('{$successMsg}', 'warning');
+        });
+    </script>";
     } else {
         $alias = $_POST['alias'] ?? '';
         $suffix = $_POST['suffix'] ?? '';

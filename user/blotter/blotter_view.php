@@ -13,8 +13,9 @@ $user = $userQuery->fetch_assoc();
 $userRole = $user['role'];
 
 // Get resident info if exists
-$residentQuery = $conn->prepare("SELECT first_name, last_name, user_id FROM residents WHERE resident_id = ?");
+$residentQuery = $conn->prepare("SELECT first_name, last_name, user_id FROM residents WHERE user_id = ?");
 $residentQuery->bind_param("i", $user_id);
+
 $residentQuery->execute();
 $residentResult = $residentQuery->get_result();
 
@@ -37,7 +38,13 @@ $blotterId = (int)$_GET['id'];
 // ----------- UPDATE STATUS (STAFF/ADMIN) -----------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status']) && in_array($userRole, ['staff','admin'])) {
     $newStatus = $_POST['update_status'];
-    $allowedStatuses = ['open','investigating','closed','cancelled'];
+
+    // Only admins can cancel
+    $allowedStatuses = ['open','investigating','closed'];
+    if($userRole === 'admin') {
+        $allowedStatuses[] = 'cancelled';
+    }
+
     if (in_array($newStatus, $allowedStatuses)) {
         $stmtUpdate = $conn->prepare("UPDATE blotter_records SET status = ? WHERE blotter_id = ?");
         $stmtUpdate->bind_param("si", $newStatus, $blotterId);
@@ -72,6 +79,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_status']) && i
 
         header("Location: blotter_view.php?id=$blotterId");
         exit;
+    } else {
+        // Optional: error message if not allowed
+        $_SESSION['error'] = "You are not allowed to set this status.";
     }
 }
 
@@ -163,28 +173,60 @@ $messages = [];
 while ($row = $msgResult->fetch_assoc()) {
     $messages[] = $row;
 }
-
 // ----------- SEND MESSAGE -----------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
+
+    // 1. Check if blotter is closed
+    if ($record['status'] === 'closed') {
+        $_SESSION['error'] = "This case is closed. You cannot send messages.";
+        header("Location: blotter_view.php?id=$blotterId");
+        exit;
+    }
+
     $messageContent = trim($_POST['message']);
     if ($messageContent !== '') {
         $senderId = $user_id;
         $senderRole = in_array($userRole, ['staff','admin']) ? $userRole : 'resident';
 
-        // Determine receiver ID
-        if (in_array($senderRole, ['staff','admin'])) {
-            $residentId = $record['complainant_id'] ?? $record['victim_id'];
-            $stmtUser = $conn->prepare("SELECT user_id FROM residents WHERE resident_id = ?");
-            $stmtUser->bind_param("i", $residentId);
-            $stmtUser->execute();
-            $res = $stmtUser->get_result()->fetch_assoc();
-            $receiverId = $res['user_id'] ?? null;
+        // ----------- AUTO-UPDATE STATUS FOR RESIDENT MESSAGE -----------
+        if ($senderRole === 'resident' && $record['status'] === 'pending') {
+            $newStatus = 'open'; 
+            $stmtUpdateStatus = $conn->prepare("UPDATE blotter_records SET status = ? WHERE blotter_id = ?");
+            $stmtUpdateStatus->bind_param("si", $newStatus, $blotterId);
+            $stmtUpdateStatus->execute();
+
+            $action = "Auto Update Status";
+            $description = "Blotter '{$record['incident_nature']}' status auto-changed to '$newStatus' because resident sent a message.";
+            $stmtLog = $conn->prepare("INSERT INTO log_activity (user_id, action, description) VALUES (?, ?, ?)");
+            $stmtLog->bind_param("iss", $user_id, $action, $description);
+            $stmtLog->execute();
+
+            $record['status'] = $newStatus;
+        }
+
+        // ----------- DETERMINE MESSAGE RECEIVER & INSERT MESSAGE -----------
+        $receiverId = null;
+        if ($senderRole === 'resident') {
+            $assignedStaffId = $record['assigned_staff_id'] ?? null;
+            if ($assignedStaffId) $receiverId = $assignedStaffId;
         } else {
-            $receiverId = $record['assigned_staff_id'] ?? 2;
+            $involvedResidents = array_filter([$record['complainant_id'] ?? null, $record['victim_id'] ?? null, $record['suspect_id'] ?? null]);
+            foreach ($involvedResidents as $resId) {
+                $stmtUser = $conn->prepare("SELECT user_id FROM residents WHERE resident_id = ?");
+                $stmtUser->bind_param("i", $resId);
+                $stmtUser->execute();
+                $res = $stmtUser->get_result()->fetch_assoc();
+                $residentUserId = $res['user_id'] ?? null;
+                $stmtUser->close();
+
+                if ($residentUserId && $residentUserId != $user_id) {
+                    $receiverId = $residentUserId;
+                    break;
+                }
+            }
         }
 
         if ($receiverId) {
-            // Insert message
             $stmtMsg = $conn->prepare("INSERT INTO messages (sender_role, sender_id, receiver_id, blotter_id, content) VALUES (?, ?, ?, ?, ?)");
             $stmtMsg->bind_param("siiis", $senderRole, $senderId, $receiverId, $blotterId, $messageContent);
             $stmtMsg->execute();
@@ -198,8 +240,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
 
             // Send notification
             $notifMsg = ($senderRole === 'staff' || $senderRole === 'admin') 
-                         ? "May bagong mensahe mula sa staff tungkol sa iyong blotter report '{$record['incident_nature']}'." 
-                         : "May bagong mensahe mula sa residente tungkol sa blotter report '{$record['incident_nature']}'.";  
+                        ? "May bagong mensahe mula sa staff tungkol sa iyong blotter report '{$record['incident_nature']}'." 
+                        : "May bagong mensahe mula sa residente tungkol sa blotter report '{$record['incident_nature']}'.";  
 
             $stmtNotif = $conn->prepare("INSERT INTO notifications (resident_id, message, from_role, title, type, priority, action_type) VALUES (?, ?, ?, 'New Message', 'blotter', 'normal', 'message')");
             $check = $conn->prepare("SELECT resident_id FROM residents WHERE resident_id = ?");
@@ -224,10 +266,23 @@ $settings = $settingsQuery->fetch_assoc();
 $barangayName = $settings['barangay_name'] ?? 'Barangay Name';
 $systemLogo = $settings['system_logo'] ?? 'default-logo.png';
 $systemLogoPath = '../' . $systemLogo;
+switch ($record['status']) {
+    case 'open':
+        $statusColor = 'emerald';
+        break;
+    case 'investigating':
+        $statusColor = 'yellow';
+        break;
+    case 'closed':
+        $statusColor = 'gray';
+        break;
+    case 'cancelled':
+        $statusColor = 'red';
+        break;
+    default:
+        $statusColor = 'blue';
+}
 ?>
-
-
-
 
 <!DOCTYPE html>
 <html lang="en">
@@ -237,77 +292,7 @@ $systemLogoPath = '../' . $systemLogo;
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
 <link rel="stylesheet" href="b.css">
-<style>
-    body {
-        background: linear-gradient(to right, #f0fdf4, #d1fae5);
-    }
-    .chat-box {
-        height: 300px;
-        overflow-y: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        padding: 10px;
-        background: #f9f9f9;
-        border-radius: 8px;
-    }
-    .chat-message {
-        display: flex;
-        max-width: 70%;
-    }
-    .chat-message.staff {
-        justify-content: flex-end;
-        margin-left: auto;
-    }
-    .chat-message.resident {
-        justify-content: flex-start;
-        margin-right: auto;
-    }
-    .chat-message .content {
-        padding: 10px 14px;
-        border-radius: 12px;
-        word-break: break-word;
-    }
-    .chat-message.staff .content {
-        background: #34d399;
-        color: white;
-        border-top-right-radius: 0;
-    }
-    .chat-message.resident .content {
-        background: #e5e7eb;
-        color: black;
-        border-top-left-radius: 0;
-    }
-    .loader {
-        border-width: 4px;
-        border-style: solid;
-        border-radius: 50%;
-        border-top-color: transparent;
-        animation: spin 1s linear infinite;
-    }
-    @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-    }
-    .sidebar-collapsed { width: 80px !important; }
-    .sidebar-collapsed .sidebar-text { display: none; }
-    .sidebar-collapsed .material-icons { margin: 0 auto !important; }
-    
-    .sidebar-collapsed img {
-        width: 40px !important;
-        height: 40px !important;
-        margin: 0 auto;
-        display: block;
-        border: 2px solid white;
-    }
-
-    .sidebar-collapsed .flex.items-center.space-x-3 {
-        justify-content: center;
-        gap: 0;
-    }
-
-
-</style>
+<link rel="stylesheet" href="bv.css">
 </head>
 <body class="font-sans">
 <div class="flex h-screen overflow-hidden">
@@ -353,82 +338,88 @@ $systemLogoPath = '../' . $systemLogo;
     <h2 class="text-2xl font-bold text-gray-800">Blotter Records</h2>
   </header>
 
-      <main class="flex-1 overflow-y-auto p-6 bg-gray-50 space-y-6">
-  <nav class="text-gray-500 text-sm mb-4">
-    <a href="blotter.php" class="hover:underline">Blotter</a> / 
-    <span class="font-medium"><?= htmlspecialchars($record['incident_nature']) ?></span>
-  </nav>
 
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-    <div class="bg-white p-4 rounded-xl shadow hover:shadow-lg transition">
-      <span class="text-gray-500">Status</span>
-      <span class="text-lg font-bold text-<?= $statusColor ?>-500"><?= ucfirst($record['status']) ?></span>
-    </div>
-    <div class="bg-white p-4 rounded-xl shadow hover:shadow-lg transition">
-      <span class="text-gray-500">Messages</span>
-      <span class="text-lg font-bold"><?= count($messages) ?></span>
-    </div>
-    <div class="bg-white p-4 rounded-xl shadow hover:shadow-lg transition">
-      <span class="text-gray-500">Filed On</span>
-      <span class="text-lg font-bold"><?= date('M d, Y', strtotime($record['incident_datetime'])) ?></span>
-    </div>
-  </div>
+    <main class="flex-1 overflow-y-auto p-6 bg-gray-50 space-y-6">
+    <nav class="text-gray-500 text-sm mb-4">
+        <a href="blotter.php" class="hover:underline">Blotter</a> / 
+        <span class="font-medium"><?= htmlspecialchars($record['incident_nature']) ?></span>
+    </nav>
 
-  <div class="bg-white shadow-lg hover:shadow-2xl rounded-xl p-6 border-l-4 border-<?= $statusColor ?>-500 transition mb-6">
-    <div class="mb-4 flex justify-between items-center">
-      <h3 class="text-xl font-bold text-gray-800"><?= htmlspecialchars($record['incident_nature']) ?></h3>
-      <?php if(in_array($_SESSION['role'], ['staff','admin'])): ?>
-      <form method="POST" class="flex items-center gap-2">
-        <select name="update_status" class="border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-emerald-400">
-          <?php foreach(['open','investigating','closed','cancelled'] as $status): ?>
-            <option value="<?= $status ?>" <?= $record['status'] === $status ? 'selected' : '' ?>><?= ucfirst($status) ?></option>
-          <?php endforeach; ?>
-        </select>
-        <button type="submit" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Update</button>
-      </form>
-      <?php endif; ?>
-    </div>
-
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-700 mt-4">
-      <div class="space-y-1">
-        <p><span class="font-semibold">Petsa & Oras:</span> <?= date('M d, Y H:i', strtotime($record['incident_datetime'])) ?></p>
-        <p><span class="font-semibold">Nagrereklamo:</span> <?= htmlspecialchars($complainant) ?></p>
-        <p><span class="font-semibold">Biktima:</span> <?= htmlspecialchars($victim) ?></p>
-        <p><span class="font-semibold">Nirereklamo:</span> <?= htmlspecialchars($suspect) ?></p>
-      </div>
-      <div class="space-y-1">
-        <p><span class="font-semibold">Lokasyon:</span> <?= htmlspecialchars($record['incident_location'] ?? '-') ?></p>
-        <p><span class="font-semibold">Detalye ng Nangyari:</span></p>
-        <p class="text-gray-600"><?= nl2br(htmlspecialchars($record['incident_nature'])) ?></p>
-      </div>
-    </div>
-  </div>
-
-        <h3 class="text-lg font-semibold mb-2">Messages</h3>
-            <div class="chat-box mb-4" id="chatBox">
-                <?php if(count($messages) > 0): ?>
-                   <?php foreach($messages as $msg): ?>
-    <?php 
-        $senderClass = ($msg['sender_role'] == 'resident') ? 'resident' : 'staff';
-    ?>
-    <div class="chat-message <?= $senderClass ?>">
-        <div class="content">
-            <strong><?= htmlspecialchars($msg['sender_name']) ?>:</strong><br>
-            <?= nl2br(htmlspecialchars($msg['content'])) ?><br>
-            <small class="text-gray-500"><?= date('M d, H:i', strtotime($msg['date_sent'])) ?></small>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-white p-4 rounded-xl shadow hover:shadow-lg transition">
+        <span class="text-gray-500">Status</span>
+        <span class="text-lg font-bold text-<?= $statusColor ?>-500"><?= ucfirst($record['status']) ?></span>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow hover:shadow-lg transition">
+        <span class="text-gray-500">Messages</span>
+        <span class="text-lg font-bold"><?= count($messages) ?></span>
+        </div>
+        <div class="bg-white p-4 rounded-xl shadow hover:shadow-lg transition">
+        <span class="text-gray-500">Filed On</span>
+        <span class="text-lg font-bold"><?= date('M d, Y', strtotime($record['incident_datetime'])) ?></span>
         </div>
     </div>
-<?php endforeach; ?>
 
-                <?php else: ?>
-                    <p class="text-gray-500 text-center">No message yet.</p>
-                <?php endif; ?>
+    <div class="bg-white shadow-lg hover:shadow-2xl rounded-xl p-6 border-l-4 border-<?= $statusColor ?>-500 transition mb-6">
+        <div class="mb-4 flex justify-between items-center">
+        <h3 class="text-xl font-bold text-gray-800"><?= htmlspecialchars($record['incident_nature']) ?></h3>
+        <?php if(in_array($_SESSION['role'], ['staff','admin'])): ?>
+        <form method="POST" class="flex items-center gap-2">
+            <select name="update_status" class="border rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-emerald-400">
+            <?php foreach(['open','investigating','closed','cancelled'] as $status): ?>
+                <option value="<?= $status ?>" <?= $record['status'] === $status ? 'selected' : '' ?>><?= ucfirst($status) ?></option>
+            <?php endforeach; ?>
+            </select>
+            <button type="submit" class="px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition">Update</button>
+        </form>
+        <?php endif; ?>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-700 mt-4">
+        <div class="space-y-1">
+            <p><span class="font-semibold">Petsa & Oras:</span> <?= date('M d, Y H:i', strtotime($record['incident_datetime'])) ?></p>
+            <p><span class="font-semibold">Nagrereklamo:</span> <?= htmlspecialchars($complainant) ?></p>
+            <p><span class="font-semibold">Biktima:</span> <?= htmlspecialchars($victim) ?></p>
+            <p><span class="font-semibold">Nirereklamo:</span> <?= htmlspecialchars($suspect) ?></p>
+        </div>
+        <div class="space-y-1">
+            <p><span class="font-semibold">Lokasyon:</span> <?= htmlspecialchars($record['incident_location'] ?? '-') ?></p>
+            <p><span class="font-semibold">Detalye ng Nangyari:</span></p>
+            <p class="text-gray-600"><?= nl2br(htmlspecialchars($record['incident_nature'])) ?></p>
+        </div>
+        </div>
+    </div>
+
+    <h3 class="text-lg font-semibold mb-2">Messages</h3>
+    <div class="chat-box mb-4" id="chatBox">
+        <?php if(count($messages) > 0): ?>
+        <?php foreach($messages as $msg): ?>
+            <?php $senderClass = ($msg['sender_role'] == 'resident') ? 'resident' : 'staff'; ?>
+            <div class="chat-message <?= $senderClass ?>">
+            <div class="content">
+                <strong><?= htmlspecialchars($msg['sender_name']) ?>:</strong><br>
+                <?= nl2br(htmlspecialchars($msg['content'])) ?><br>
+                <small class="text-gray-500"><?= date('M d, H:i', strtotime($msg['date_sent'])) ?></small>
             </div>
-  <form method="POST" class="flex gap-2">
-    <input type="text" name="message" placeholder="Type a message..." class="flex-1 px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" required>
-    <button type="submit" class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition">Send</button>
-  </form>
-</main>
+            </div>
+        <?php endforeach; ?>
+        <?php else: ?>
+        <p class="text-gray-500 text-center">No message yet.</p>
+        <?php endif; ?>
+    </div>
+
+        <?php if ($record['status'] !== 'closed'): ?>
+        <form method="POST" class="flex gap-2 mt-2">
+            <input type="text" name="message" placeholder="Type a message..." 
+                class="flex-1 px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" required>
+            <button type="submit" class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600 transition">Send</button>
+        </form>
+        <?php else: ?>
+        <div class="mt-2 text-gray-500 italic">This case is closed. Messaging is no longer available.</div>
+        <?php endif; ?>
+
+    </main>
+
 
     </div>
 </div>

@@ -177,30 +177,30 @@ $householdsQuery = $conn->query("
 
 
 <div class="space-y-4">
-<?php 
-$cardNumber = 1; 
-while($household = $householdsQuery->fetch_assoc()):
-    $accId = "acc".$household['household_id'];
-    $household_id = intval($household['household_id']);
-    $headResidentId = isset($household['head_resident_id']) ? (int)$household['head_resident_id'] : 0;
+    <?php 
+    $cardNumber = 1; 
+    while($household = $householdsQuery->fetch_assoc()):
+        $accId = "acc".$household['household_id'];
+        $household_id = intval($household['household_id']);
+        $headResidentId = isset($household['head_resident_id']) ? (int)$household['head_resident_id'] : 0;
 
-    $head = ['first_name'=>'N/A','last_name'=>'','resident_address'=>'','street'=>''];
-    if($headResidentId){
-        $headQuery = $conn->query("SELECT first_name, last_name, resident_address, street FROM residents WHERE resident_id = $headResidentId AND is_archived = 0");
-        if($headQuery) $head = $headQuery->fetch_assoc();
-    }
+        $head = ['first_name'=>'N/A','last_name'=>'','resident_address'=>'','street'=>''];
+        if($headResidentId){
+            $headQuery = $conn->query("SELECT first_name, last_name, resident_address, street FROM residents WHERE resident_id = $headResidentId AND is_archived = 0");
+            if($headQuery) $head = $headQuery->fetch_assoc();
+        }
 
-$membersQuery = $conn->query("
-    SELECT resident_id, first_name, last_name
-    FROM residents
-    WHERE household_id = $household_id
-    AND resident_id != $headResidentId
-    AND is_family_head = 0
-    AND is_archived = 0
-    ORDER BY last_name ASC
-");
+    $membersQuery = $conn->query("
+        SELECT resident_id, first_name, last_name
+        FROM residents
+        WHERE household_id = $household_id
+        AND resident_id != $headResidentId
+        AND is_family_head = 0
+        AND is_archived = 0
+        ORDER BY last_name ASC
+    ");
 
-?>
+    ?>
 <div class="household-card bg-white shadow-lg rounded-xl overflow-hidden relative border border-gray-200">
     <button onclick="toggleAccordion('<?= $accId ?>')" class="w-full text-left px-6 py-4 flex justify-between items-center hover:bg-gray-50 transition">
         <div>

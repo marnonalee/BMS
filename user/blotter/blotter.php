@@ -8,9 +8,9 @@ include '../db.php';
 $user_id = $_SESSION["user_id"];
 $userQuery = $conn->query("SELECT * FROM users WHERE id = '$user_id'");
 $user = $userQuery->fetch_assoc();
-$role = $user['role']; 
+$role = $user['role'];
 
-
+// Active blotter records (not closed)
 $blotterQuery = $conn->query("
     SELECT b.*, 
            r1.first_name AS complainant_first, r1.last_name AS complainant_last,
@@ -20,13 +20,30 @@ $blotterQuery = $conn->query("
     LEFT JOIN residents r1 ON b.complainant_id = r1.resident_id
     LEFT JOIN residents r2 ON b.victim_id = r2.resident_id
     LEFT JOIN residents r3 ON b.suspect_id = r3.resident_id
-    WHERE b.archived = 0
+    WHERE b.archived = 0 AND b.status != 'closed'
     ORDER BY b.created_at DESC
 ");
-
 $blotterRecords = [];
-while($row = $blotterQuery->fetch_assoc()) {
+while ($row = $blotterQuery->fetch_assoc()) {
     $blotterRecords[] = $row;
+}
+
+// Closed blotter records
+$closedQuery = $conn->query("
+    SELECT b.*, 
+           r1.first_name AS complainant_first, r1.last_name AS complainant_last,
+           r2.first_name AS victim_first, r2.last_name AS victim_last,
+           r3.first_name AS suspect_first, r3.last_name AS suspect_last
+    FROM blotter_records b
+    LEFT JOIN residents r1 ON b.complainant_id = r1.resident_id
+    LEFT JOIN residents r2 ON b.victim_id = r2.resident_id
+    LEFT JOIN residents r3 ON b.suspect_id = r3.resident_id
+    WHERE b.archived = 0 AND b.status = 'closed'
+    ORDER BY b.created_at DESC
+");
+$closedRecords = [];
+while ($row = $closedQuery->fetch_assoc()) {
+    $closedRecords[] = $row;
 }
 
 function logActivity($conn, $user_id, $action, $description = '') {
@@ -48,6 +65,7 @@ $blotterStatsQuery = $conn->query("
 ");
 $blotterStats = $blotterStatsQuery->fetch_assoc();
 logActivity($conn, $user_id, 'View blotter', 'Viewed the blotter records page');
+
 $settingsQuery = $conn->query("SELECT barangay_name, system_logo FROM system_settings LIMIT 1");
 $settings = $settingsQuery->fetch_assoc();
 $barangayName = $settings['barangay_name'] ?? 'Barangay Name';
@@ -175,87 +193,113 @@ $systemLogoPath = '../' . $systemLogo;
   <div class="mb-6">
     <input type="text" id="searchBlotter" placeholder="Search by resident or case..." class="w-full md:w-1/3 px-4 py-2 border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-yellow-400 transition">
   </div>
-  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-6 mb-6">
-    <div class="bg-gray-100 text-gray-800 p-5 rounded-xl shadow-lg hover:scale-105 transition-transform cursor-pointer" id="filterAll">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="font-semibold text-lg">Total Cases</h2>
-          <p class="text-3xl font-bold mt-2"><?= $blotterStats['total'] ?></p>
+
+  <!-- Stats Cards -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+      <div class="bg-gray-100 text-gray-800 p-5 rounded-xl shadow-lg hover:scale-105 transition-transform cursor-pointer" id="filterAll">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="font-semibold text-lg">Total Cases</h2>
+            <p class="text-3xl font-bold mt-2"><?= $blotterStats['total'] ?></p>
+          </div>
+          <span class="material-icons text-4xl opacity-70">folder</span>
         </div>
-        <span class="material-icons text-4xl opacity-70">folder</span>
       </div>
-    </div>
-    <div class="bg-emerald-600 text-white p-5 rounded-xl shadow-lg hover:scale-105 transition-transform cursor-pointer" id="filterOpen">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="font-semibold text-lg">Open</h2>
-          <p class="text-3xl font-bold mt-2"><?= $blotterStats['open_cases'] ?></p>
+      <div class="bg-emerald-600 text-white p-5 rounded-xl shadow-lg hover:scale-105 transition-transform cursor-pointer" id="filterOpen">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="font-semibold text-lg">Open</h2>
+            <p class="text-3xl font-bold mt-2"><?= $blotterStats['open_cases'] ?></p>
+          </div>
+          <span class="material-icons text-4xl opacity-70">warning</span>
         </div>
-        <span class="material-icons text-4xl opacity-70">warning</span>
       </div>
-    </div>
-    <div class="bg-blue-600 text-white p-5 rounded-xl shadow-lg hover:scale-105 transition-transform cursor-pointer" id="filterInvestigating">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="font-semibold text-lg">Investigating</h2>
-          <p class="text-3xl font-bold mt-2"><?= $blotterStats['investigating'] ?></p>
+      <div class="bg-blue-600 text-white p-5 rounded-xl shadow-lg hover:scale-105 transition-transform cursor-pointer" id="filterInvestigating">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="font-semibold text-lg">Investigating</h2>
+            <p class="text-3xl font-bold mt-2"><?= $blotterStats['investigating'] ?></p>
+          </div>
+          <span class="material-icons text-4xl opacity-70">search</span>
         </div>
-        <span class="material-icons text-4xl opacity-70">search</span>
       </div>
-    </div>
-    <div class="bg-green-700 text-white p-5 rounded-xl shadow-lg hover:scale-105 transition-transform cursor-pointer" id="filterClosed">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="font-semibold text-lg">Closed</h2>
-          <p class="text-3xl font-bold mt-2"><?= $blotterStats['closed'] ?></p>
+      <div class="bg-red-600 text-white p-5 rounded-xl shadow-lg hover:scale-105 transition-transform cursor-pointer" id="filterCancelled">
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="font-semibold text-lg">Cancelled</h2>
+            <p class="text-3xl font-bold mt-2"><?= $blotterStats['cancelled'] ?></p>
+          </div>
+          <span class="material-icons text-4xl opacity-70">cancel</span>
         </div>
-        <span class="material-icons text-4xl opacity-70">check_circle</span>
       </div>
-    </div>
-    <div class="bg-red-600 text-white p-5 rounded-xl shadow-lg hover:scale-105 transition-transform cursor-pointer" id="filterCancelled">
-      <div class="flex items-center justify-between">
-        <div>
-          <h2 class="font-semibold text-lg">Cancelled</h2>
-          <p class="text-3xl font-bold mt-2"><?= $blotterStats['cancelled'] ?></p>
-        </div>
-        <span class="material-icons text-4xl opacity-70">cancel</span>
-      </div>
-    </div>
   </div>
+
+  <!-- Active Blotter Records -->
+  <h2 class="text-xl font-bold mb-4">Active Blotter Records</h2>
   <div id="blotterCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    <?php if(count($blotterRecords) > 0): ?>
-      <?php foreach($blotterRecords as $record): ?>
-        <?php
-          $complainant = $record['complainant_name'] ?: trim($record['complainant_first'] . ' ' . $record['complainant_last']);
-          $victim = $record['victim_name'] ?: trim($record['victim_first'] . ' ' . $record['victim_last']);
-          $suspect = $record['suspect_name'] ?: trim($record['suspect_first'] . ' ' . $record['suspect_last']);
-          $statusColor = match($record['status']) {
-            'open' => 'yellow-500',
-            'investigating' => 'blue-500',
-            'closed' => 'green-600',
-            'cancelled' => 'red-600',
-            default => 'gray-400'
-          };
-        ?>
-        <div class="bg-white shadow-lg rounded-xl p-5 border-l-4 border-<?= $statusColor ?> flex flex-col justify-between hover:shadow-xl transition">
-          <div class="blotter-text">
-            <h3 class="text-lg font-bold text-gray-800 mb-2"><?= $record['incident_nature'] ?></h3>
-            <p class="text-sm text-gray-600 mb-1"><span class="font-semibold">Date:</span> <?= date('M d, Y H:i', strtotime($record['incident_datetime'])) ?></p>
-            <p class="text-sm text-gray-600 mb-1"><span class="font-semibold">Complainant:</span> <?= $complainant ?></p>
-            <p class="text-sm text-gray-600 mb-1"><span class="font-semibold">Victim:</span> <?= $victim ?></p>
-            <p class="text-sm text-gray-600 mb-1"><span class="font-semibold">Suspect:</span> <?= $suspect ?></p>
-          </div>
-          <div class="mt-4 flex items-center justify-between">
-            <span class="px-2 py-1 rounded text-white bg-<?= $statusColor ?> font-semibold"><?= ucfirst($record['status']) ?></span>
-            <a href="blotter_view.php?id=<?= $record['blotter_id'] ?>" class="text-blue-500 hover:underline text-sm font-medium">View</a>
-          </div>
-        </div>
-      <?php endforeach; ?>
-    <?php else: ?>
-      <p class="col-span-full text-gray-500 text-center">No blotter records found.</p>
-    <?php endif; ?>
+      <?php if(count($blotterRecords) > 0): ?>
+          <?php foreach($blotterRecords as $record): ?>
+              <?php
+                $complainant = $record['complainant_name'] ?: trim($record['complainant_first'] . ' ' . $record['complainant_last']);
+                $victim = $record['victim_name'] ?: trim($record['victim_first'] . ' ' . $record['victim_last']);
+                $suspect = $record['suspect_name'] ?: trim($record['suspect_first'] . ' ' . $record['suspect_last']);
+                $statusColor = match($record['status']) {
+                  'open' => 'yellow-500',
+                  'investigating' => 'blue-500',
+                  'cancelled' => 'red-600',
+                  default => 'gray-400'
+                };
+              ?>
+              <div data-status="<?= $record['status'] ?>" class="bg-white shadow-lg rounded-xl p-5 border-l-4 border-<?= $statusColor ?> flex flex-col justify-between hover:shadow-xl transition">
+                  <div class="blotter-text">
+                      <h3 class="text-lg font-bold text-gray-800 mb-2"><?= $record['incident_nature'] ?></h3>
+                      <p class="text-sm text-gray-600 mb-1"><span class="font-semibold">Date:</span> <?= date('M d, Y H:i', strtotime($record['incident_datetime'])) ?></p>
+                      <p class="text-sm text-gray-600 mb-1"><span class="font-semibold">Complainant:</span> <?= $complainant ?></p>
+                      <p class="text-sm text-gray-600 mb-1"><span class="font-semibold">Victim:</span> <?= $victim ?></p>
+                      <p class="text-sm text-gray-600 mb-1"><span class="font-semibold">Suspect:</span> <?= $suspect ?></p>
+                  </div>
+                  <div class="mt-4 flex items-center justify-between">
+                      <span class="px-2 py-1 rounded text-white bg-<?= $statusColor ?> font-semibold"><?= ucfirst($record['status']) ?></span>
+                      <a href="blotter_view.php?id=<?= $record['blotter_id'] ?>" class="text-blue-500 hover:underline text-sm font-medium">View</a>
+                  </div>
+              </div>
+          <?php endforeach; ?>
+      <?php else: ?>
+          <p class="col-span-full text-gray-500 text-center">No active blotter records found.</p>
+      <?php endif; ?>
+  </div>
+
+  <!-- Closed Blotter Records -->
+  <h2 class="text-xl font-bold mt-10 mb-4">Closed Blotter Records</h2>
+  <div id="closedBlotterCards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <?php if(count($closedRecords) > 0): ?>
+          <?php foreach($closedRecords as $record): ?>
+              <?php
+                $complainant = $record['complainant_name'] ?: trim($record['complainant_first'] . ' ' . $record['complainant_last']);
+                $victim = $record['victim_name'] ?: trim($record['victim_first'] . ' ' . $record['victim_last']);
+                $suspect = $record['suspect_name'] ?: trim($record['suspect_first'] . ' ' . $record['suspect_last']);
+                $statusColor = 'green-600';
+              ?>
+              <div data-status="<?= $record['status'] ?>" class="bg-white shadow-lg rounded-xl p-5 border-l-4 border-<?= $statusColor ?> flex flex-col justify-between hover:shadow-xl transition">
+                  <div class="blotter-text">
+                      <h3 class="text-lg font-bold text-gray-800 mb-2"><?= $record['incident_nature'] ?></h3>
+                      <p class="text-sm text-gray-600 mb-1"><span class="font-semibold">Date:</span> <?= date('M d, Y H:i', strtotime($record['incident_datetime'])) ?></p>
+                      <p class="text-sm text-gray-600 mb-1"><span class="font-semibold">Complainant:</span> <?= $complainant ?></p>
+                      <p class="text-sm text-gray-600 mb-1"><span class="font-semibold">Victim:</span> <?= $victim ?></p>
+                      <p class="text-sm text-gray-600 mb-1"><span class="font-semibold">Suspect:</span> <?= $suspect ?></p>
+                  </div>
+                  <div class="mt-4 flex items-center justify-between">
+                      <span class="px-2 py-1 rounded text-white bg-<?= $statusColor ?> font-semibold"><?= ucfirst($record['status']) ?></span>
+                      <a href="blotter_view.php?id=<?= $record['blotter_id'] ?>" class="text-blue-500 hover:underline text-sm font-medium">View</a>
+                  </div>
+              </div>
+          <?php endforeach; ?>
+      <?php else: ?>
+          <p class="col-span-full text-gray-500 text-center">No closed blotter records found.</p>
+      <?php endif; ?>
   </div>
 </main>
+
 
   </div>
 </div>

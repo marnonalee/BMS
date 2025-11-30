@@ -27,7 +27,7 @@ $resident = $conn->query("SELECT * FROM residents WHERE resident_id = $id")->fet
 
 echo json_encode([
     'success' => true,
-    'message' => 'Resident and all related records archived successfully!',
+    'message' => 'Resident  records archived successfully!',
     'resident' => $resident
 ]);
 ?>

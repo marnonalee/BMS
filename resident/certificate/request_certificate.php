@@ -1,5 +1,6 @@
 <?php
 session_start();
+include 'resident_header.php';
 if (!isset($_SESSION["user_id"]) || $_SESSION["role"] !== "resident") {
     header("Location: ../index.php");
     exit();
@@ -144,137 +145,135 @@ if (isset($_GET['child_search'])) {
 </head>
 <body class="bg-gray-100 min-h-screen font-sans">
 
-<header class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md p-4 rounded-b-lg">
-    <div class="container mx-auto flex justify-between items-center">
-        <h1 class="text-2xl font-semibold"><?= $editRequest ? "Edit Certificate Request" : "Request a Barangay Certificate" ?></h1>
-        <a href="../dashboard.php" class="flex items-center gap-2 px-4 py-2 rounded-lg font-medium bg-white text-blue-600 hover:bg-gray-100 transition">
-            <i class="fas fa-arrow-left"></i> Back
-        </a>
+<main class="container mx-auto mt-10 max-w-6xl px-4">
+
+    <div class="mb-6 flex items-center space-x-2 text-gray-500 text-sm">
+        <a href="../dashboard.php" class="hover:underline">Dashboard</a>
+        <span class="text-gray-300">/</span>
+        <span class="font-semibold text-gray-700">Document Request</span>
     </div>
-</header>
 
-<main class="flex justify-center mt-10 px-6 mb-10">
-    <div class="w-full max-w-6xl">
+    <div class="bg-white p-10 rounded-3xl shadow-xl">
 
-        <div class="bg-white p-10 rounded-2xl shadow-lg">
-    
-            <form class="space-y-6" method="POST" enctype="multipart/form-data">
-                <input type="hidden" name="resident_id" value="<?= $resident_id ?>">
-                <input type="hidden" name="template_id" value="<?= $template_id ?>">
+        <form class="space-y-6" method="POST" enctype="multipart/form-data">
+            <input type="hidden" name="resident_id" value="<?= $resident_id ?>">
+            <input type="hidden" name="template_id" value="<?= $template_id ?>">
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block font-medium mb-2">Certificate</label>
-                        <input type="text" value="<?= htmlspecialchars($certificate_name) ?>" readonly class="w-full border p-4 bg-gray-100 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block font-medium mb-2">Full Name</label>
-                        <input type="text" value="<?= htmlspecialchars($full_name) ?>" readonly class="w-full border p-4 bg-gray-100 rounded-lg">
-                    </div>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block font-medium mb-2">Age</label>
-                        <input type="text" value="<?= htmlspecialchars($age) ?>" readonly class="w-full border p-4 bg-gray-100 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block font-medium mb-2">Civil Status</label>
-                        <input type="text" value="<?= htmlspecialchars($resident['civil_status'] ?? '') ?>" readonly class="w-full border p-4 bg-gray-100 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block font-medium mb-2">Sex</label>
-                        <input type="text" value="<?= htmlspecialchars($resident['sex'] ?? '') ?>" readonly class="w-full border p-4 bg-gray-100 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block font-medium mb-2">Voter Status</label>
-                        <input type="text" value="<?= htmlspecialchars($resident['voter_status'] ?? '') ?>" readonly class="w-full border p-4 bg-gray-100 rounded-lg">
-                    </div>
-                </div>
-
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                    <label class="block font-medium mb-2">Resident Address</label>
-                    <input type="text" value="<?= htmlspecialchars($resident['resident_address']) ?>" readonly class="w-full border p-4 bg-gray-100 rounded-lg">
+                    <label class="block font-medium mb-2">Certificate</label>
+                    <input type="text" value="<?= htmlspecialchars($certificate_name) ?>" readonly class="w-full border p-4 bg-gray-100 rounded-lg">
                 </div>
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block font-medium mb-2">Birthdate</label>
-                        <input type="text" value="<?= htmlspecialchars($resident['birthdate']) ?>" class="w-full border p-4 bg-gray-100 rounded-lg">
-                    </div>
-                    <div>
-                        <label class="block font-medium mb-2">Birthplace</label>
-                        <input type="text" value="<?= htmlspecialchars($resident['birthplace'] ?? '') ?>" class="w-full border p-4 bg-gray-100 rounded-lg">
-                    </div>
-                </div>
-
-                <div id="purposeDiv">
-                    <label class="block font-medium mb-2">Purpose</label>
-                    <textarea name="purpose" class="w-full border p-4 rounded-lg resize-none" rows="3"><?= htmlspecialchars($editRequest['purpose'] ?? '') ?></textarea>
-                </div>
-
                 <div>
-                    <label class="block font-medium mb-2">Upload Valid ID</label>
-                    <input type="file" name="valid_id" accept=".jpg,.jpeg,.png" class="w-full border p-4 rounded-lg">
-                    <?php if (!empty($editRequest['supporting_doc'])): ?>
-                        <div class="mt-4">
-                            <p class="font-medium mb-2">Current Valid ID:</p>
-                            <img src="../uploads/valid_ids/<?= htmlspecialchars($editRequest['supporting_doc']) ?>" id="valid_id_preview" class="w-40 h-40 object-cover border rounded-lg">
-                        </div>
-                    <?php else: ?>
-                        <img id="valid_id_preview" class="w-40 h-40 object-cover border rounded-lg mt-4 hidden">
-                    <?php endif; ?>
+                    <label class="block font-medium mb-2">Full Name</label>
+                    <input type="text" value="<?= htmlspecialchars($full_name) ?>" readonly class="w-full border p-4 bg-gray-100 rounded-lg">
                 </div>
+            </div>
 
-                <div id="professionDiv" class="<?= ($certificate_name === 'Certificate of Attestation') ? '' : 'hidden' ?>">
-                    <label class="block font-medium mb-2">Profession / Occupation</label>
-                    <input type="text" name="profession_occupation" class="w-full border p-4 rounded-lg" value="<?= htmlspecialchars($editRequest['profession_occupation'] ?? $resident['profession_occupation'] ?? '') ?>">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block font-medium mb-2">Age</label>
+                    <input type="text" value="<?= htmlspecialchars($age) ?>" readonly class="w-full border p-4 bg-gray-100 rounded-lg">
                 </div>
-                <div id="earningsDiv" class="<?= ($certificate_name === 'Certificate of Attestation') ? '' : 'hidden' ?>">
-                    <label class="block font-medium mb-2">Earnings per Month</label>
-                    <input type="number" name="earnings_per_month" min="0" step="any" class="w-full border p-4 rounded-lg" value="<?= htmlspecialchars($editRequest['earnings_per_month'] ?? '') ?>">
+                <div>
+                    <label class="block font-medium mb-2">Civil Status</label>
+                    <input type="text" value="<?= htmlspecialchars($resident['civil_status'] ?? '') ?>" readonly class="w-full border p-4 bg-gray-100 rounded-lg">
                 </div>
+                <div>
+                    <label class="block font-medium mb-2">Sex</label>
+                    <input type="text" value="<?= htmlspecialchars($resident['sex'] ?? '') ?>" readonly class="w-full border p-4 bg-gray-100 rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-medium mb-2">Voter Status</label>
+                    <input type="text" value="<?= htmlspecialchars($resident['voter_status'] ?? '') ?>" readonly class="w-full border p-4 bg-gray-100 rounded-lg">
+                </div>
+            </div>
 
-                <div id="guardianSection" class="<?= ($certificate_name === 'Certificate of Guardianship' || $editRequest) ? '' : 'hidden' ?> mt-6">
-                    <h3 class="text-lg font-semibold mb-4">Child / Ward Information</h3>
-                    <div class="relative">
-                        <label class="block mb-2 font-medium">Child / Ward</label>
-                        <input type="text" id="child_search" placeholder="Type child name..." autocomplete="off" class="w-full border p-4 rounded-lg outline-none" value="<?= htmlspecialchars($editRequest['child_fullname'] ?? '') ?>">
-                        <input type="hidden" id="child_id" value="">
-                        <div id="child_dropdown" class="absolute w-full bg-white border mt-1 rounded shadow-lg z-50"></div>
+            <div>
+                <label class="block font-medium mb-2">Resident Address</label>
+                <input type="text" value="<?= htmlspecialchars($resident['resident_address']) ?>" readonly class="w-full border p-4 bg-gray-100 rounded-lg">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                    <label class="block font-medium mb-2">Birthdate</label>
+                    <input type="text" value="<?= htmlspecialchars($resident['birthdate']) ?>" readonly class="w-full border p-4 bg-gray-100 rounded-lg">
+                </div>
+                <div>
+                    <label class="block font-medium mb-2">Birthplace</label>
+                    <input type="text" value="<?= htmlspecialchars($resident['birthplace'] ?? '') ?>" readonly class="w-full border p-4 bg-gray-100 rounded-lg">
+                </div>
+            </div>
+
+            <div id="purposeDiv">
+                <label class="block font-medium mb-2">Purpose</label>
+                <textarea name="purpose" class="w-full border p-4 rounded-lg resize-none" rows="3"><?= htmlspecialchars($editRequest['purpose'] ?? '') ?></textarea>
+            </div>
+
+            <div>
+                <label class="block font-medium mb-2">Upload Valid ID</label>
+                <input type="file" name="valid_id" accept=".jpg,.jpeg,.png" class="w-full border p-4 rounded-lg">
+                <?php if (!empty($editRequest['supporting_doc'])): ?>
+                    <div class="mt-4">
+                        <p class="font-medium mb-2">Current Valid ID:</p>
+                        <img src="../uploads/valid_ids/<?= htmlspecialchars($editRequest['supporting_doc']) ?>" id="valid_id_preview" class="w-40 h-40 object-cover border rounded-lg">
                     </div>
-
-                    <div id="child_manual" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                        <div>
-                            <label class="block mb-2 font-medium">Child Full Name</label>
-                            <input type="text" name="child_fullname" id="child_fullname" class="w-full border p-4 rounded-lg" value="<?= htmlspecialchars($editRequest['child_fullname'] ?? '') ?>">
-                        </div>
-                        <div>
-                            <label class="block mb-2 font-medium">Child Age</label>
-                            <input type="text" id="child_age" class="w-full border p-4 rounded-lg" value="<?= !empty($editRequest['child_birthdate']) ? (new DateTime($editRequest['child_birthdate']))->diff(new DateTime('now'))->y : '' ?>" readonly>
-                        </div>
-                        <div>
-                            <label class="block mb-2 font-medium">Birthdate</label>
-                            <input type="date" name="child_birthdate" id="child_birthdate" class="w-full border p-4 rounded-lg" value="<?= htmlspecialchars($editRequest['child_birthdate'] ?? '') ?>">
-                        </div>
-                        <div>
-                            <label class="block mb-2 font-medium">Birthplace</label>
-                            <input type="text" name="child_birthplace" id="child_birthplace" class="w-full border p-4 rounded-lg" value="<?= htmlspecialchars($editRequest['child_birthplace'] ?? '') ?>">
-                        </div>
-                    </div>
-                </div>
-
-                <?php if ($editRequest): ?>
-                    <input type="hidden" name="edit_id" value="<?= $editId ?>">
+                <?php else: ?>
+                    <img id="valid_id_preview" class="w-40 h-40 object-cover border rounded-lg mt-4 hidden">
                 <?php endif; ?>
+            </div>
 
-                <button type="submit" class="w-full py-4 rounded-xl font-semibold text-white text-lg mt-6 transition hover:opacity-90" style="background-color: <?= $themeColor ?>;" <?= ($is_approved != 1) ? "disabled" : "" ?>>
-                    <?= $editRequest ? "Update Request" : "Submit Request" ?>
-                </button>
-            </form>
+            <div id="professionDiv" class="<?= ($certificate_name === 'Certificate of Attestation') ? '' : 'hidden' ?>">
+                <label class="block font-medium mb-2">Profession / Occupation</label>
+                <input type="text" name="profession_occupation" class="w-full border p-4 rounded-lg" value="<?= htmlspecialchars($editRequest['profession_occupation'] ?? $resident['profession_occupation'] ?? '') ?>">
+            </div>
 
-        </div>
+            <div id="earningsDiv" class="<?= ($certificate_name === 'Certificate of Attestation') ? '' : 'hidden' ?>">
+                <label class="block font-medium mb-2">Earnings per Month</label>
+                <input type="number" name="earnings_per_month" min="0" step="any" class="w-full border p-4 rounded-lg" value="<?= htmlspecialchars($editRequest['earnings_per_month'] ?? '') ?>">
+            </div>
+
+            <div id="guardianSection" class="<?= ($certificate_name === 'Certificate of Guardianship' || $editRequest) ? '' : 'hidden' ?> mt-6">
+                <h3 class="text-lg font-semibold mb-4">Child / Ward Information</h3>
+                <div class="relative">
+                    <label class="block mb-2 font-medium">Child / Ward</label>
+                    <input type="text" id="child_search" placeholder="Type child name..." autocomplete="off" class="w-full border p-4 rounded-lg outline-none" value="<?= htmlspecialchars($editRequest['child_fullname'] ?? '') ?>">
+                    <input type="hidden" id="child_id" value="">
+                    <div id="child_dropdown" class="absolute w-full bg-white border mt-1 rounded shadow-lg z-50"></div>
+                </div>
+
+                <div id="child_manual" class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                    <div>
+                        <label class="block mb-2 font-medium">Child Full Name</label>
+                        <input type="text" name="child_fullname" id="child_fullname" class="w-full border p-4 rounded-lg" value="<?= htmlspecialchars($editRequest['child_fullname'] ?? '') ?>">
+                    </div>
+                    <div>
+                        <label class="block mb-2 font-medium">Child Age</label>
+                        <input type="text" id="child_age" class="w-full border p-4 rounded-lg" value="<?= !empty($editRequest['child_birthdate']) ? (new DateTime($editRequest['child_birthdate']))->diff(new DateTime('now'))->y : '' ?>" readonly>
+                    </div>
+                    <div>
+                        <label class="block mb-2 font-medium">Birthdate</label>
+                        <input type="date" name="child_birthdate" id="child_birthdate" class="w-full border p-4 rounded-lg" value="<?= htmlspecialchars($editRequest['child_birthdate'] ?? '') ?>">
+                    </div>
+                    <div>
+                        <label class="block mb-2 font-medium">Birthplace</label>
+                        <input type="text" name="child_birthplace" id="child_birthplace" class="w-full border p-4 rounded-lg" value="<?= htmlspecialchars($editRequest['child_birthplace'] ?? '') ?>">
+                    </div>
+                </div>
+            </div>
+
+            <?php if ($editRequest): ?>
+                <input type="hidden" name="edit_id" value="<?= $editId ?>">
+            <?php endif; ?>
+
+            <button type="submit" class="w-full py-4 rounded-2xl font-semibold text-white text-lg mt-6 transition hover:opacity-90" style="background-color: <?= $themeColor ?>;" <?= ($is_approved != 1) ? "disabled" : "" ?>>
+                <?= $editRequest ? "Update Request" : "Submit Request" ?>
+            </button>
+        </form>
+
     </div>
 </main>
+
 <?php if(!empty($success) || !empty($error)): ?>
 <div id="messageModal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
     <div class="bg-white rounded-xl shadow-xl p-8 w-full max-w-md">

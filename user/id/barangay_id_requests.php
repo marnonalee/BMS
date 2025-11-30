@@ -20,14 +20,13 @@ $totalRequests = $conn->query("SELECT COUNT(*) AS cnt FROM barangay_id_requests 
 $totalPages = ceil($totalRequests / $perPage);
 
 $requestsQuery = $conn->query("
-    SELECT b.*, r.first_name, r.middle_name, r.last_name, r.birthdate, r.resident_address
+    SELECT b.*, r.first_name, r.middle_name, r.last_name, r.birthdate, r.resident_address, b.request_type
     FROM barangay_id_requests b
     JOIN residents r ON b.resident_id = r.resident_id
     WHERE b.status != 'Cancelled' AND b.is_printed = 0
     ORDER BY b.created_at DESC
     LIMIT $start, $perPage
 ");
-
 
 function logActivity($conn, $user_id, $action, $description = null) {
     $stmt = $conn->prepare("INSERT INTO log_activity (user_id, action, description, created_at) VALUES (?, ?, ?, NOW())");
@@ -196,73 +195,93 @@ $systemLogoPath = '../' . $systemLogo;
     <h2 class="text-2xl font-bold text-gray-800">Barangay ID Requests</h2>
   </header>
 
-  <main class="flex-1 overflow-y-auto p-6">
-
+<main class="flex-1 overflow-y-auto p-6">
   <div class="bg-white p-6 rounded-2xl shadow-lg overflow-x-auto">
 
-    <div class="flex justify-start mb-4 items-center gap-2">
-      <span class="text-gray-600 font-medium">Show</span>
-      <select id="perPageSelect" class="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 transition">
-        <option value="50" <?= $perPage == 50 ? 'selected' : '' ?>>50</option>
-        <option value="100" <?= $perPage == 100 ? 'selected' : '' ?>>100</option>
-        <option value="200" <?= $perPage == 200 ? 'selected' : '' ?>>200</option>
-      </select>
-      <span class="text-gray-600 font-medium">entries</span>
-    </div>
+      <div class="flex justify-start mb-4 items-center gap-2">
+          <span class="text-gray-600 font-medium">Show</span>
+          <select id="perPageSelect" class="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 transition">
+            <option value="50" <?= $perPage == 50 ? 'selected' : '' ?>>50</option>
+            <option value="100" <?= $perPage == 100 ? 'selected' : '' ?>>100</option>
+            <option value="200" <?= $perPage == 200 ? 'selected' : '' ?>>200</option>
+          </select>
+          <span class="text-gray-600 font-medium">entries</span>
+      </div>
 
-    <table class="min-w-full divide-y divide-gray-200">
-      <thead class="bg-gray-100">
-        <tr>
-          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Resident</th>
-          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID Number</th>
-          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
-          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Requested On</th>
-          <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
-        </tr>
-      </thead>
-      <tbody id="requestsTable" class="bg-white divide-y divide-gray-200">
-          <?php if ($requestsQuery->num_rows > 0): ?>
-              <?php while ($req = $requestsQuery->fetch_assoc()): ?>
-              <tr class="hover:bg-gray-50 cursor-pointer transition <?= $req['status'] === 'Pending' ? 'pendingRow' : '' ?>"
-                  data-resident="<?= htmlspecialchars($req['first_name'].' '.$req['last_name']) ?>"
-                  data-birthdate="<?= htmlspecialchars($req['birthdate']) ?>"
-                  data-address="<?= htmlspecialchars($req['resident_address']) ?>">
-                
-                <td class="px-6 py-4"><?= htmlspecialchars($req['first_name'].' '.$req['last_name']) ?></td>
-                <td class="px-6 py-4"><?= htmlspecialchars($req['id_number'] ?: 'N/A') ?></td>
-                <td class="px-6 py-4"><?= htmlspecialchars($req['status']) ?></td>
-                <td class="px-6 py-4">
-                    <?= date('M d, Y h:i A', strtotime($req['date_requested'])) ?>
-                </td>
-                <td class="px-6 py-4">
-                  <!-- Actions code here -->
-                </td>
-              </tr>
-              <?php endwhile; ?>
-          <?php else: ?>
-              <tr>
-                  <td colspan="5" class="text-center py-4 text-gray-500">No requests found.</td>
-              </tr>
-          <?php endif; ?>
-      </tbody>
+      <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Resident</th>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID Number</th>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Request Type</th> <!-- NEW -->
+              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Requested On</th>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment Proof</th>
+              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="requestsTable" class="bg-white divide-y divide-gray-200">
+              <?php if ($requestsQuery->num_rows > 0): ?>
+                  <?php while ($req = $requestsQuery->fetch_assoc()): ?>
+                  <tr class="hover:bg-gray-50 cursor-pointer transition <?= $req['status'] === 'Pending' ? 'pendingRow' : '' ?>"
+                      data-resident="<?= htmlspecialchars($req['first_name'].' '.$req['last_name']) ?>"
+                      data-birthdate="<?= htmlspecialchars($req['birthdate']) ?>"
+                      data-address="<?= htmlspecialchars($req['resident_address']) ?>">
+                    
+                    <td class="px-6 py-4"><?= htmlspecialchars($req['first_name'].' '.$req['last_name']) ?></td>
+                    <td class="px-6 py-4"><?= htmlspecialchars($req['id_number'] ?: 'N/A') ?></td>
+                    <td class="px-6 py-4"><?= htmlspecialchars($req['request_type']) ?></td> <!-- NEW -->
+                    <td class="px-6 py-4"><?= htmlspecialchars($req['status']) ?></td>
+                    <td class="px-6 py-4"><?= date('M d, Y h:i A', strtotime($req['date_requested'])) ?></td>
+                    
+                    <td class="px-6 py-4">
+                        <?php if (!empty($req['payment_proof'])): ?>
+                            <button onclick="openModal('<?= '../../resident/uploads/' . $req['payment_proof'] ?>')" 
+                                class="text-blue-600 hover:underline">View Proof</button>
+                        <?php else: ?>
+                            <span class="text-gray-500">No Proof</span>
+                        <?php endif; ?>
+                    </td>
 
-    </table>
+                    <td class="px-6 py-4">
+                      <?php if ($req['status'] === 'Pending'): ?>
+                          <!-- Approve/Reject buttons -->
+                          <form method="POST" style="display:inline-block;">
+                              <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
+                              <input type="hidden" name="status" value="Approved">
+                              <button type="submit" name="update_status" class="bg-green-500 text-white px-3 py-1 rounded hover:bg-green-600 transition">Approve</button>
+                          </form>
 
-    <div class="flex justify-center mt-6 space-x-2">
-      <?php if ($page > 1): ?>
-        <a href="?page=<?= $page-1 ?>&perPage=<?= $perPage ?>" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition">Prev</a>
-      <?php endif; ?>
-      <?php for ($i = 1; $i <= $totalPages; $i++): ?>
-        <a href="?page=<?= $i ?>&perPage=<?= $perPage ?>" class="px-4 py-2 rounded-lg <?= $i == $page ? 'bg-emerald-500 text-white' : 'bg-gray-200 hover:bg-gray-300' ?> transition"><?= $i ?></a>
-      <?php endfor; ?>
-      <?php if ($page < $totalPages): ?>
-        <a href="?page=<?= $page+1 ?>&perPage=<?= $perPage ?>" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition">Next</a>
-      <?php endif; ?>
-    </div>
+                          <form method="POST" style="display:inline-block;">
+                              <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
+                              <input type="hidden" name="status" value="Rejected">
+                              <button type="submit" name="update_status" class="bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 transition">Reject</button>
+                          </form>
+
+                      <?php elseif ($req['status'] === 'Approved' && $req['is_printed'] == 0): ?>
+                          <button onclick="printID('<?= '../'.$req['generated_pdf'] ?>', <?= $req['id'] ?>)" 
+                                  class="bg-yellow-500 text-white px-3 py-1 rounded hover:bg-yellow-600 transition">
+                              Print
+                          </button>
+
+                      <?php else: ?>
+                          <span class="text-gray-500">No actions</span>
+                      <?php endif; ?>
+                    </td>
+
+                  </tr>
+                  <?php endwhile; ?>
+              <?php else: ?>
+                  <tr>
+                      <td colspan="7" class="text-center py-4 text-gray-500">No requests found.</td>
+                  </tr>
+              <?php endif; ?>
+          </tbody>
+
+      </table>
 
   </div>
 
-  <!-- TABLE OF PRINTED IDs -->
 <div class="bg-white p-6 rounded-2xl shadow-lg overflow-x-auto mt-10">
 
     <h3 class="text-xl font-bold mb-4 text-gray-700">List of Printed Barangay IDs</h3>
@@ -282,6 +301,7 @@ $systemLogoPath = '../' . $systemLogo;
             <tr>
                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Resident Name</th>
                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID Number</th>
+                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Request Type</th> <!-- NEW -->
                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">PDF</th>
             </tr>
         </thead>
@@ -292,10 +312,11 @@ $systemLogoPath = '../' . $systemLogo;
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-6 py-4"><?= htmlspecialchars($p['first_name'].' '.$p['last_name']) ?></td>
                         <td class="px-6 py-4"><?= htmlspecialchars($p['id_number']) ?></td>
+                        <td class="px-6 py-4"><?= htmlspecialchars($p['request_type']) ?></td> <!-- NEW -->
                         <td class="px-6 py-4">
                             <?php if (!empty($p['generated_pdf'])): ?>
                                 <a href="<?= '../'.$p['generated_pdf'] ?>" target="_blank" 
-                                   class="text-blue-600 hover:underline">View PDF</a>
+                                  class="text-blue-600 hover:underline">View PDF</a>
                             <?php else: ?>
                                 <span class="text-gray-500">No File</span>
                             <?php endif; ?>
@@ -304,7 +325,7 @@ $systemLogoPath = '../' . $systemLogo;
                 <?php endwhile; ?>
             <?php else: ?>
                 <tr>
-                    <td colspan="3" class="text-center py-4 text-gray-500">No printed IDs found.</td>
+                    <td colspan="4" class="text-center py-4 text-gray-500">No printed IDs found.</td>
                 </tr>
             <?php endif; ?>
         </tbody>
@@ -314,7 +335,7 @@ $systemLogoPath = '../' . $systemLogo;
 
 </main>
 
-    </div>
+</div>
 </div>
 <div id="loadingOverlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
     <div class="flex flex-col items-center">
@@ -334,10 +355,14 @@ $systemLogoPath = '../' . $systemLogo;
 
 <iframe id="printFrame" style="display:none;"></iframe>
 
-<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50">
-    <div class="bg-white rounded-lg overflow-hidden shadow-lg max-w-2xl w-full relative">
-        <button onclick="closeModal()" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-        <img id="paymentModalImg" src="" alt="Payment Proof" class="w-full h-auto object-contain">
+<div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden z-50 p-4">
+    <div class="bg-white rounded-lg overflow-hidden shadow-lg relative w-full max-w-md md:max-w-lg lg:max-w-xl">
+        <button onclick="closeModal()" 
+                class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+        <div class="max-h-[80vh] overflow-auto">
+            <img id="paymentModalImg" src="" alt="Payment Proof" 
+                 class="w-full h-auto object-contain rounded-b-lg max-h-[80vh] mx-auto">
+        </div>
     </div>
 </div>
 
@@ -348,7 +373,13 @@ $systemLogoPath = '../' . $systemLogo;
         <button onclick="closeSuccessModal()" class="bg-emerald-500 text-white px-4 py-2 rounded hover:bg-emerald-600 transition">OK</button>
     </div>
 </div>
+
+
+
+
 <script>
+
+
 function printID(pdfUrl, requestId) {
     const iframe = document.getElementById('printFrame');
     const loader = document.getElementById('loadingOverlay');

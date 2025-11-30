@@ -7,77 +7,53 @@ if (!isset($_SESSION["user_id"])) {
 
 include 'db.php';
 
-// ------------------ Login Success Message ------------------
-$loginSuccessMsg = "";
-if (isset($_SESSION["login_success"])) {
-    $loginSuccessMsg = $_SESSION["login_success"];
-    unset($_SESSION["login_success"]);
-}
+$loginSuccessMsg = $_SESSION["login_success"] ?? "";
+unset($_SESSION["login_success"]);
 
-// ------------------ User Info ------------------
 $user_id = $_SESSION["user_id"];
-$userQuery = $conn->query("SELECT * FROM users WHERE id = '$user_id'");
-$user = $userQuery->fetch_assoc();
+$user = $conn->query("SELECT * FROM users WHERE id = '$user_id'")->fetch_assoc();
 $role = $user['role'];
 
-// ------------------ Residents Statistics ------------------
-$residentsQuery = $conn->query("
+$statsQuery = $conn->query("
     SELECT 
-        COUNT(*) AS total,
-        SUM(CASE WHEN sex='Male' THEN 1 ELSE 0 END) AS male,
-        SUM(CASE WHEN sex='Female' THEN 1 ELSE 0 END) AS female,
-        SUM(is_senior) AS seniors,
-        SUM(is_pwd) AS pwds,
-        SUM(is_solo_parent) AS solo_parents,
-        SUM(CASE WHEN voter_status='Registered' THEN 1 ELSE 0 END) AS voters
-    FROM residents
+        (SELECT COUNT(*) FROM residents) AS total_residents,
+        (SELECT SUM(CASE WHEN sex='Male' THEN 1 ELSE 0 END) FROM residents) AS male_residents,
+        (SELECT SUM(CASE WHEN sex='Female' THEN 1 ELSE 0 END) FROM residents) AS female_residents,
+        (SELECT SUM(is_senior) FROM residents) AS seniors,
+        (SELECT SUM(is_pwd) FROM residents) AS pwds,
+        (SELECT SUM(is_solo_parent) FROM residents) AS solo_parents,
+        (SELECT SUM(CASE WHEN voter_status='Registered' THEN 1 ELSE 0 END) FROM residents) AS voters,
+        (SELECT COUNT(*) FROM households) AS total_households,
+        (SELECT COUNT(*) FROM certificate_requests) AS total_certificates,
+        (SELECT SUM(CASE WHEN status='Pending' THEN 1 ELSE 0 END) FROM certificate_requests) AS pending_certificates,
+        (SELECT SUM(CASE WHEN status='Approved' THEN 1 ELSE 0 END) FROM certificate_requests) AS approved_certificates,
+        (SELECT SUM(CASE WHEN status='Ready for Pickup' THEN 1 ELSE 0 END) FROM certificate_requests) AS ready_certificates,
+        (SELECT SUM(CASE WHEN status='Cancelled' THEN 1 ELSE 0 END) FROM certificate_requests) AS cancelled_certificates,
+        (SELECT COUNT(*) FROM blotter_records WHERE archived=0) AS blotter_count
 ");
-$residents = $residentsQuery->fetch_assoc();
+$stats = $statsQuery->fetch_assoc();
 
-$totalResidents = $residents['total'];
-$maleResidents = $residents['male'];
-$femaleResidents = $residents['female'];
-$seniorCount = $residents['seniors'];
-$pwdCount = $residents['pwds'];
-$soloParentCount = $residents['solo_parents'];
-$voterCount = $residents['voters'];
+$totalResidents = $stats['total_residents'];
+$maleResidents = $stats['male_residents'];
+$femaleResidents = $stats['female_residents'];
+$seniorCount = $stats['seniors'];
+$pwdCount = $stats['pwds'];
+$soloParentCount = $stats['solo_parents'];
+$voterCount = $stats['voters'];
+$totalHouseholds = $stats['total_households'];
+$totalCertificates = $stats['total_certificates'];
+$pendingCertificates = $stats['pending_certificates'];
+$approvedCertificates = $stats['approved_certificates'];
+$readyCertificates = $stats['ready_certificates'];
+$cancelledCertificates = $stats['cancelled_certificates'];
+$blotterCount = $stats['blotter_count'];
 
-// ------------------ Total Households ------------------
-$householdQuery = $conn->query("SELECT COUNT(*) AS total_households FROM households");
-$householdData = $householdQuery->fetch_assoc();
-$totalHouseholds = $householdData['total_households'];
-
-// ------------------ Certificates Statistics ------------------
-$certQuery = $conn->query("
-    SELECT 
-        COUNT(*) AS total,
-        SUM(CASE WHEN status='Pending' THEN 1 ELSE 0 END) AS pending,
-        SUM(CASE WHEN status='Approved' THEN 1 ELSE 0 END) AS approved,
-        SUM(CASE WHEN status='Ready for Pickup' THEN 1 ELSE 0 END) AS ready,
-        SUM(CASE WHEN status='Cancelled' THEN 1 ELSE 0 END) AS cancelled
-    FROM certificate_requests
-");
-$certificates = $certQuery->fetch_assoc();
-
-$totalCertificates = $certificates['total'];
-$pendingCertificates = $certificates['pending'];
-$approvedCertificates = $certificates['approved'];
-$readyCertificates = $certificates['ready'];
-$cancelledCertificates = $certificates['cancelled'];
-
-// ------------------ Blotter Count ------------------
-$blotterQuery = $conn->query("SELECT COUNT(*) AS total FROM blotter_records WHERE archived = 0");
-$blotter = $blotterQuery->fetch_assoc();
-$blotterCount = $blotter['total'];
-
-// ------------------ Weekly Residents Growth ------------------
 $growthQuery = $conn->query("
     SELECT YEAR(date_registered) AS year, WEEK(date_registered, 1) AS week, COUNT(*) AS total
     FROM residents
     GROUP BY YEAR(date_registered), WEEK(date_registered, 1)
     ORDER BY YEAR(date_registered), WEEK(date_registered, 1)
 ");
-
 $weeks = [];
 $residentsPerWeek = [];
 while($row = $growthQuery->fetch_assoc()){
@@ -85,33 +61,29 @@ while($row = $growthQuery->fetch_assoc()){
     $residentsPerWeek[] = (int)$row['total'];
 }
 
-// ------------------- Population Growth Notification -------------------
 $lastWeekTotal = $residentsPerWeek[count($residentsPerWeek) - 2] ?? 0;
 $currentWeekTotal = $residentsPerWeek[count($residentsPerWeek) - 1] ?? 0;
 
 if ($lastWeekTotal > 0) {
     $growthPercent = (($currentWeekTotal - $lastWeekTotal) / $lastWeekTotal) * 100;
-
     if ($growthPercent > 10) {
         $message = "Resident population increased by " . round($growthPercent, 1) . "% compared to last week.";
         $title = "Population Alert";
         $type = "system";
         $priority = "high";
         $date_created = date('Y-m-d H:i:s');
-
         $checkQuery = $conn->prepare("SELECT COUNT(*) AS cnt FROM notifications WHERE message=? AND from_role='system'");
         $checkQuery->bind_param("s", $message);
         $checkQuery->execute();
         $result = $checkQuery->get_result()->fetch_assoc();
-        if ($result['cnt'] == 0) {
-            $insertQuery = $conn->prepare("INSERT INTO notifications (resident_id, message, from_role, title, type, priority, is_read, date_created) VALUES (NULL, ?, 'system', ?, ?, ?, 0, ?)");
-            $insertQuery->bind_param("ssssss", $message, $title, $type, $priority, $date_created);
+        if ($result['cnt']==0) {
+            $insertQuery = $conn->prepare("INSERT INTO notifications (resident_id,message,from_role,title,type,priority,is_read,date_created) VALUES (NULL,?,?,?,?,?,0,?)");
+            $insertQuery->bind_param("ssssss",$message,$title,$type,$priority,$date_created,$date_created);
             $insertQuery->execute();
         }
     }
 }
 
-// ------------------- Pending Certificates Alert -------------------
 $pendingThreshold = 10;
 if ($pendingCertificates >= $pendingThreshold) {
     $message = "High number of pending certificates: $pendingCertificates requests awaiting approval.";
@@ -119,162 +91,122 @@ if ($pendingCertificates >= $pendingThreshold) {
     $type = "system";
     $priority = "high";
     $date_created = date('Y-m-d H:i:s');
-
     $checkQuery = $conn->prepare("SELECT COUNT(*) AS cnt FROM notifications WHERE message=? AND from_role='system'");
-    $checkQuery->bind_param("s", $message);
+    $checkQuery->bind_param("s",$message);
     $checkQuery->execute();
     $result = $checkQuery->get_result()->fetch_assoc();
-    if ($result['cnt'] == 0) {
-        $insertQuery = $conn->prepare("INSERT INTO notifications (resident_id, message, from_role, title, type, priority, is_read, date_created) VALUES (NULL, ?, 'system', ?, ?, ?, 0, ?)");
-        $insertQuery->bind_param("ssssss", $message, $title, $type, $priority, $date_created);
+    if ($result['cnt']==0) {
+        $insertQuery = $conn->prepare("INSERT INTO notifications (resident_id,message,from_role,title,type,priority,is_read,date_created) VALUES (NULL,?,?,?,?,?,0,?)");
+        $insertQuery->bind_param("ssssss",$message,$title,$type,$priority,$date_created,$date_created);
         $insertQuery->execute();
     }
 }
 
-// ------------------ Age Group Distribution ------------------
-$ageQuery = $conn->query("
+$ageData = $conn->query("
     SELECT
         SUM(CASE WHEN age BETWEEN 0 AND 17 THEN 1 ELSE 0 END) AS '0-17',
         SUM(CASE WHEN age BETWEEN 18 AND 35 THEN 1 ELSE 0 END) AS '18-35',
         SUM(CASE WHEN age BETWEEN 36 AND 50 THEN 1 ELSE 0 END) AS '36-50',
         SUM(CASE WHEN age >= 51 THEN 1 ELSE 0 END) AS '51+'
     FROM residents
-");
-$ageData = $ageQuery->fetch_assoc();
+")->fetch_assoc();
 
-// ------------------ Recent Transactions ------------------
-$certTransactions = $conn->query("
-    SELECT r.first_name, r.last_name, 'Certificate' AS type, status, date_requested AS date
-    FROM certificate_requests cr
-    JOIN residents r ON cr.resident_id = r.resident_id
-    ORDER BY date_requested DESC
+$recentTransactionsQuery = $conn->query("
+    SELECT * FROM (
+        SELECT r.first_name, r.last_name, 'Certificate' AS type, status, date_requested AS date
+        FROM certificate_requests cr
+        JOIN residents r ON cr.resident_id = r.resident_id
+        UNION ALL
+        SELECT COALESCE(r.first_name, br.complainant_name) AS first_name,
+               COALESCE(r.last_name,'') AS last_name,
+               'Blotter' AS type, br.status, br.created_at AS date
+        FROM blotter_records br
+        LEFT JOIN residents r ON br.complainant_id = r.resident_id
+    ) t
+    ORDER BY date DESC
     LIMIT 5
 ");
-
-$blotterTransactions = $conn->query("
-    SELECT COALESCE(r.first_name, br.complainant_name) AS first_name, 
-           COALESCE(r.last_name, '') AS last_name,
-           'Blotter' AS type, br.status, br.created_at AS date
-    FROM blotter_records br
-    LEFT JOIN residents r ON br.complainant_id = r.resident_id
-    ORDER BY br.created_at DESC
-    LIMIT 5
-");
-
 $recentTransactions = [];
-while($row = $certTransactions->fetch_assoc()){
+while($row = $recentTransactionsQuery->fetch_assoc()){
     $recentTransactions[] = [
-        'name' => $row['first_name'] . ' ' . $row['last_name'],
-        'type' => $row['type'],
-        'status' => ucfirst($row['status']),
-        'date' => date('Y-m-d', strtotime($row['date']))
-    ];
-}
-while($row = $blotterTransactions->fetch_assoc()){
-    $recentTransactions[] = [
-        'name' => trim(($row['first_name'] ?? '') . ' ' . ($row['last_name'] ?? '')) ?: 'Unknown',
-        'type' => $row['type'],
-        'status' => ucfirst($row['status']),
-        'date' => date('Y-m-d', strtotime($row['date']))
+        'name'=>trim(($row['first_name'] ?? '').' '.($row['last_name'] ?? ''))?:'Unknown',
+        'type'=>$row['type'],
+        'status'=>ucfirst($row['status']),
+        'date'=>date('Y-m-d',strtotime($row['date']))
     ];
 }
 
-usort($recentTransactions, function($a, $b){
-    return strtotime($b['date']) - strtotime($a['date']);
-});
-$recentTransactions = array_slice($recentTransactions, 0, 5);
-
-// ------------------ Notifications ------------------
-$notificationsQuery = $conn->query("
-    SELECT n.notification_id, n.resident_id, n.message, n.from_role, n.title, n.type, n.priority, n.is_read, n.date_created
-    FROM notifications n
-    WHERE n.from_role IN ('system', 'resident') OR n.from_role = '$role'
-    ORDER BY n.date_created DESC
+$notificationsQuery = $conn->query(" 
+    SELECT * FROM notifications
+    WHERE from_role = 'resident'
+    ORDER BY date_created DESC
     LIMIT 5
 ");
 
 $notifications = [];
-while($row = $notificationsQuery->fetch_assoc()){
+while ($row = $notificationsQuery->fetch_assoc()) {
     $notifications[] = $row;
 }
 
 $unreadCount = count(array_filter($notifications, fn($n) => $n['is_read'] == 0));
 
-// ------------------ Certificate Types & Counts ------------------
 $permitTypeQuery = $conn->query("
     SELECT ct.template_name AS certificate_name, COUNT(cr.id) AS total_requests
     FROM certificate_templates ct
     LEFT JOIN certificate_requests cr ON cr.template_id = ct.id
-    WHERE ct.template_for = 'Certificate'
+    WHERE ct.template_for='Certificate'
     GROUP BY ct.id
 ");
-
-$permitLabels = [];
-$permitCounts = [];
-while($row = $permitTypeQuery->fetch_assoc()){
-    $permitLabels[] = $row['certificate_name'];
-    $permitCounts[] = (int)$row['total_requests'];
+$permitLabels=[];$permitCounts=[];
+while($row=$permitTypeQuery->fetch_assoc()){
+    $permitLabels[]=$row['certificate_name'];
+    $permitCounts[]=(int)$row['total_requests'];
 }
 
-// ------------------ Population Projection Based on Database Growth ------------------
-$avgHouseholdSize = $totalHouseholds > 0 ? $totalResidents / $totalHouseholds : 0;
-$lastWeekTotal = $residentsPerWeek[count($residentsPerWeek) - 2] ?? 0;
-$currentWeekTotal = $residentsPerWeek[count($residentsPerWeek) - 1] ?? 0;
-$growthRate = $lastWeekTotal > 0 ? ($currentWeekTotal - $lastWeekTotal) / $lastWeekTotal : 0;
-$newHouseholds = round($totalHouseholds * $growthRate);
-$projectedResidents = round($newHouseholds * $avgHouseholdSize);
-$growthPercent = round($growthRate * 100, 1);
+$avgHouseholdSize=$totalHouseholds>0?$totalResidents/$totalHouseholds:0;
+$growthRate=$lastWeekTotal>0?($currentWeekTotal-$lastWeekTotal)/$lastWeekTotal:0;
+$newHouseholds=round($totalHouseholds*$growthRate);
+$projectedResidents=round($newHouseholds*$avgHouseholdSize);
+$growthPercent=round($growthRate*100,1);
 
-// ------------------ System Settings ------------------
-$settingsQuery = $conn->query("SELECT barangay_name, system_logo FROM system_settings LIMIT 1");
-$settings = $settingsQuery->fetch_assoc();
-$barangayName = $settings['barangay_name'] ?? 'Barangay Name';
-$systemLogo = $settings['system_logo'] ?? 'default-logo.png';
-$systemLogoPath = $systemLogo;
+$settings=$conn->query("SELECT barangay_name,system_logo FROM system_settings LIMIT 1")->fetch_assoc();
+$barangayName=$settings['barangay_name']??'Barangay Name';
+$systemLogo=$settings['system_logo']??'default-logo.png';
+$systemLogoPath=$systemLogo;
 
-// ------------------ AI / Predictive Analytics ------------------
-function linear_regression_forecast($x, $y, $next_point) {
-    $n = count($x);
-    if ($n < 2) return $y[0] ?? 0;
-    $sum_x = array_sum($x);
-    $sum_y = array_sum($y);
-    $sum_xy = $sum_xx = 0;
-    for ($i = 0; $i < $n; $i++) {
-        $sum_xy += $x[$i] * $y[$i];
-        $sum_xx += $x[$i] * $x[$i];
+function linear_regression_forecast($x,$y,$next_point){
+    $n=count($x);
+    if($n<2) return $y[0]??0;
+    $sum_x=array_sum($x);
+    $sum_y=array_sum($y);
+    $sum_xy=$sum_xx=0;
+    for($i=0;$i<$n;$i++){
+        $sum_xy+=$x[$i]*$y[$i];
+        $sum_xx+=$x[$i]*$x[$i];
     }
-    $denominator = $n * $sum_xx - $sum_x * $sum_x;
-    if ($denominator == 0) return $y[$n - 1];
-    $slope = ($n * $sum_xy - $sum_x * $sum_y) / $denominator;
-    $intercept = ($sum_y - $slope * $sum_x) / $n;
-    return $intercept + $slope * $next_point;
+    $denominator=$n*$sum_xx-$sum_x*$sum_x;
+    if($denominator==0) return $y[$n-1];
+    $slope=($n*$sum_xy-$sum_x*$sum_y)/$denominator;
+    $intercept=($sum_y-$slope*$sum_x)/$n;
+    return $intercept+$slope*$next_point;
 }
-$weeksWithNext = $weeks;
-$weeksWithNext[] = 'Next Week';
-$residentsPerWeekWithNull = $residentsPerWeek;
-$residentsPerWeekWithNull[] = null;
-// Predict next week's population
-$weeksNumeric = range(1, count($residentsPerWeek));
-$nextWeek = count($residentsPerWeek) + 1;
-$predictedPopulationNextWeek = round(linear_regression_forecast($weeksNumeric, $residentsPerWeek, $nextWeek));
 
-// Predict certificate demand for next week
-$certGrowthQuery = $conn->query("
+$weeksWithNext=$weeks;$weeksWithNext[]='Next Week';
+$residentsPerWeekWithNull=$residentsPerWeek;$residentsPerWeekWithNull[]=null;
+$weeksNumeric=range(1,count($residentsPerWeek));
+$nextWeek=count($residentsPerWeek)+1;
+$predictedPopulationNextWeek=round(linear_regression_forecast($weeksNumeric,$residentsPerWeek,$nextWeek));
+
+$certGrowthQuery=$conn->query("
     SELECT YEAR(date_requested) AS year, WEEK(date_requested,1) AS week, COUNT(*) AS total
     FROM certificate_requests
     GROUP BY YEAR(date_requested), WEEK(date_requested,1)
     ORDER BY YEAR(date_requested), WEEK(date_requested,1)
 ");
-
-$certPerWeek = [];
-$certWeeksNumeric = [];
-$counter = 1;
-while($row = $certGrowthQuery->fetch_assoc()){
-    $certWeeksNumeric[] = $counter++;
-    $certPerWeek[] = (int)$row['total'];
-}
-$nextCertWeek = $counter;
-$predictedCertNextWeek = round(linear_regression_forecast($certWeeksNumeric, $certPerWeek, $nextCertWeek));
+$certPerWeek=[];$certWeeksNumeric=[];$counter=1;
+while($row=$certGrowthQuery->fetch_assoc()){$certWeeksNumeric[]=$counter++;$certPerWeek[]=(int)$row['total'];}
+$nextCertWeek=$counter;
+$predictedCertNextWeek=round(linear_regression_forecast($certWeeksNumeric,$certPerWeek,$nextCertWeek));
 ?>
 
 
@@ -455,113 +387,110 @@ $predictedCertNextWeek = round(linear_regression_forecast($certWeeksNumeric, $ce
 
     </div>
   </header>
+
 <main class="flex-1 overflow-y-auto p-6 space-y-6">
+  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+    <?php if($role === 'admin'): ?>
+      <div onclick="window.location.href='residents/resident.php?openAdd=true'" 
+           class="flex items-center justify-center gap-2 p-3 bg-green-100 rounded-lg shadow hover:shadow-md cursor-pointer transition transform hover:-translate-y-1">
+        <span class="text-green-600 text-xl">🧑‍🤝‍🧑</span>
+        <span class="font-semibold text-green-700">Add Resident</span>
+      </div>
+    <?php endif; ?>
 
-<div class="flex flex-wrap gap-4">
-  <?php if($role === 'admin'): ?>
-    <button onclick="window.location.href='residents/resident.php?openAdd=true'" class="bg-green-500 text-white px-4 py-2 rounded shadow hover:bg-green-600 transition">
-      Add Resident
-    </button>
-  <?php endif; ?>
-  <button onclick="window.location.href='certificate/walkin_certificates.php?openAdd=true'" class="bg-blue-500 text-white px-4 py-2 rounded shadow hover:bg-blue-600 transition">
-    Generate Certificate
-  </button>
-  <button class="bg-yellow-500 text-white px-4 py-2 rounded shadow hover:bg-yellow-600 transition">
-    Generate Report
-  </button>
-</div>
+    <div onclick="window.location.href='certificate/walkin_certificates.php?openAdd=true'" 
+         class="flex items-center justify-center gap-2 p-3 bg-blue-100 rounded-lg shadow hover:shadow-md cursor-pointer transition transform hover:-translate-y-1">
+      <span class="text-blue-600 text-xl">📄</span>
+      <span class="font-semibold text-blue-700">Generate Certificate</span>
+    </div>
 
+    <div class="flex items-center justify-center gap-2 p-3 bg-yellow-100 rounded-lg shadow hover:shadow-md cursor-pointer transition transform hover:-translate-y-1">
+      <span class="text-yellow-600 text-xl">📊</span>
+      <span class="font-semibold text-yellow-700">Generate Report</span>
+    </div>
+  </div>
 
+  <div class="bg-white p-5 rounded-xl shadow">
+      <h3 class="text-gray-700 font-semibold mb-4">Population Scenario Analysis</h3>
+      <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
+          <?php 
+          $populationChangeText = $projectedResidents >= 0 ? 'increase' : 'decrease';
+          $populationChangeAbs = abs($projectedResidents);
+          $newHouseholdsAbs = abs($newHouseholds);
+          ?>
+          <p class="text-blue-800 font-semibold">
+              Estimated population <?= $populationChangeText ?>: <span class="text-xl"><?= $populationChangeAbs ?></span> residents.
+          </p>
+          <p class="text-blue-700 text-sm">
+              (Based on average household size of <?= number_format($avgHouseholdSize, 2) ?> residents per household and projected <?= $newHouseholdsAbs ?> new households.)
+          </p>
+      </div>
+  </div>
 
 
   <div class="bg-white p-5 rounded-xl shadow">
-    <h3 class="text-gray-700 font-semibold mb-4">Population Scenario Analysis</h3>
-    <div class="bg-blue-50 p-4 rounded-lg border-l-4 border-blue-400">
-      <p class="text-blue-800 font-semibold">Estimated population increase: <span class="text-xl"><?= $projectedResidents ?></span> residents.</p>
-      <p class="text-blue-700 text-sm">(Based on average household size of <?= number_format($avgHouseholdSize, 2) ?> residents per household and projected <?= $newHouseholds ?> new households.)</p>
+    <h3 class="text-gray-700 font-semibold mb-4">Analytics & Decision Support</h3>
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div onclick="window.location.href='residents/resident.php?filter=solo_parent'" class="bg-pink-100 p-4 rounded-lg flex flex-col justify-between cursor-pointer hover:scale-105 transform transition duration-300">
+        <h4 class="text-pink-800 font-semibold">Solo Parents</h4>
+        <p class="text-2xl font-bold text-pink-900 mt-2"><?= $soloParentCount ?></p>
+        <span class="text-sm text-pink-700">Total solo parents</span>
+      </div>
+      <div onclick="window.location.href='blotter/blotter.php'" class="bg-indigo-100 p-4 rounded-lg flex flex-col justify-between cursor-pointer hover:scale-105 transform transition duration-300">
+        <h4 class="text-indigo-800 font-semibold">Blotter Cases</h4>
+        <p class="text-2xl font-bold text-indigo-900 mt-2"><?= $blotterCount ?></p>
+        <span class="text-sm text-indigo-700">Total blotter cases</span>
+      </div>
+      <div onclick="window.location.href='households/household.php'" class="bg-green-100 p-4 rounded-lg flex flex-col justify-between cursor-pointer hover:scale-105 transform transition duration-300">
+        <h4 class="text-green-800 font-semibold">Households</h4>
+        <p class="text-2xl font-bold text-green-900 mt-2"><?= number_format($totalHouseholds) ?></p>
+        <span class="text-sm text-green-700">Total households</span>
+      </div>
+      <div class="bg-blue-100 p-4 rounded-lg flex flex-col justify-between">
+        <h4 class="text-blue-800 font-semibold">Weekly Resident Growth</h4>
+        <p class="text-2xl font-bold text-blue-900"><?= array_sum($residentsPerWeek) ?></p>
+        <span class="text-sm text-blue-700">Total residents added this year</span>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+      <div class="bg-yellow-100 p-4 rounded-lg flex flex-col justify-between">
+        <h4 class="text-yellow-800 font-semibold">Senior Citizens vs PWDs</h4>
+        <p class="text-2xl font-bold text-yellow-900"><?= $seniorCount ?> / <?= $pwdCount ?></p>
+        <span class="text-sm text-yellow-700">Ratio of seniors to PWDs</span>
+      </div>
+      <div class="bg-green-100 p-4 rounded-lg flex flex-col justify-between">
+        <h4 class="text-green-800 font-semibold">Voter Participation</h4>
+        <p class="text-2xl font-bold text-green-900"><?= $voterCount ?>/<?= $totalResidents ?></p>
+        <span class="text-sm text-green-700">Registered voters vs total population</span>
+      </div>
+      <div class="bg-gray-100 p-4 rounded-lg">
+        <h4 class="text-gray-700 font-semibold mb-2">Population Insights Chart</h4>
+        <canvas id="decisionSupportChart" class="w-full h-64"></canvas>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div class="bg-white p-6 rounded-xl shadow-md col-span-1">
+        <h2 class="text-lg font-semibold mb-2">Predicted Population (Next Week)</h2>
+        <p class="text-3xl font-bold text-blue-600 mb-4"><?= $predictedPopulationNextWeek ?></p>
+        <canvas id="populationChart" class="w-full h-48"></canvas>
+      </div>
+      <div class="bg-white p-6 rounded-xl shadow-md col-span-1">
+        <h2 class="text-lg font-semibold mb-2">Predicted Certificate Requests (Next Week)</h2>
+        <p class="text-3xl font-bold text-green-600 mb-4"><?= $predictedCertNextWeek ?></p>
+        <canvas id="certificateChart" class="w-full h-48"></canvas>
+      </div>
+      <div class="bg-white p-5 rounded-xl shadow col-span-1">
+        <h3 class="text-gray-700 font-semibold mb-4">Age Distribution</h3>
+        <canvas id="ageDistributionChart" class="w-full h-48"></canvas>
+      </div>
     </div>
   </div>
-<div class="bg-white p-5 rounded-xl shadow">
-  <h3 class="text-gray-700 font-semibold mb-4">Analytics & Decision Support</h3>
-
-  <!-- Top analytics cards -->
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-    <!-- Solo Parents -->
-    <div onclick="window.location.href='residents/resident.php?filter=solo_parent'" class="bg-pink-100 p-4 rounded-lg flex flex-col justify-between cursor-pointer hover:scale-105 transform transition duration-300">
-      <h4 class="text-pink-800 font-semibold">Solo Parents</h4>
-      <p class="text-2xl font-bold text-pink-900 mt-2"><?= $soloParentCount ?></p>
-      <span class="text-sm text-pink-700">Total solo parents</span>
-    </div>
-
-    <!-- Blotter Cases -->
-    <div onclick="window.location.href='blotter/blotter.php'" class="bg-indigo-100 p-4 rounded-lg flex flex-col justify-between cursor-pointer hover:scale-105 transform transition duration-300">
-      <h4 class="text-indigo-800 font-semibold">Blotter Cases</h4>
-      <p class="text-2xl font-bold text-indigo-900 mt-2"><?= $blotterCount ?></p>
-      <span class="text-sm text-indigo-700">Total blotter cases</span>
-    </div>
-
-    <!-- Households -->
-    <div onclick="window.location.href='households/household.php'" class="bg-green-100 p-4 rounded-lg flex flex-col justify-between cursor-pointer hover:scale-105 transform transition duration-300">
-      <h4 class="text-green-800 font-semibold">Households</h4>
-      <p class="text-2xl font-bold text-green-900 mt-2"><?= number_format($totalHouseholds) ?></p>
-      <span class="text-sm text-green-700">Total households</span>
-    </div>
-
-    <!-- Weekly Resident Growth (existing card) -->
-    <div class="bg-blue-100 p-4 rounded-lg flex flex-col justify-between">
-      <h4 class="text-blue-800 font-semibold">Weekly Resident Growth</h4>
-      <p class="text-2xl font-bold text-blue-900"><?= array_sum($residentsPerWeek) ?></p>
-      <span class="text-sm text-blue-700">Total residents added this year</span>
-    </div>
-  </div>
-
-  <!-- Other analytics cards -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-    <div class="bg-yellow-100 p-4 rounded-lg flex flex-col justify-between">
-      <h4 class="text-yellow-800 font-semibold">Senior Citizens vs PWDs</h4>
-      <p class="text-2xl font-bold text-yellow-900"><?= $seniorCount ?> / <?= $pwdCount ?></p>
-      <span class="text-sm text-yellow-700">Ratio of seniors to PWDs</span>
-    </div>
-
-    <div class="bg-green-100 p-4 rounded-lg flex flex-col justify-between">
-      <h4 class="text-green-800 font-semibold">Voter Participation</h4>
-      <p class="text-2xl font-bold text-green-900"><?= $voterCount ?>/<?= $totalResidents ?></p>
-      <span class="text-sm text-green-700">Registered voters vs total population</span>
-    </div>
-
-    <div class="bg-gray-100 p-4 rounded-lg">
-      <h4 class="text-gray-700 font-semibold mb-2">Population Insights Chart</h4>
-      <canvas id="decisionSupportChart" class="w-full h-64"></canvas>
-    </div>
-  </div>
-
-  <!-- Bottom charts -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-    <div class="bg-white p-6 rounded-xl shadow-md col-span-1">
-      <h2 class="text-lg font-semibold mb-2">Predicted Population (Next Week)</h2>
-      <p class="text-3xl font-bold text-blue-600 mb-4"><?= $predictedPopulationNextWeek ?></p>
-      <canvas id="populationChart" class="w-full h-48"></canvas>
-    </div>
-
-    <div class="bg-white p-6 rounded-xl shadow-md col-span-1">
-      <h2 class="text-lg font-semibold mb-2">Predicted Certificate Requests (Next Week)</h2>
-      <p class="text-3xl font-bold text-green-600 mb-4"><?= $predictedCertNextWeek ?></p>
-      <canvas id="certificateChart" class="w-full h-48"></canvas>
-    </div>
-
-    <div class="bg-white p-5 rounded-xl shadow col-span-1">
-      <h3 class="text-gray-700 font-semibold mb-4">Age Distribution</h3>
-      <canvas id="ageDistributionChart" class="w-full h-48"></canvas>
-    </div>
-  </div>
-</div>
-
-
 
   <div class="bg-white p-5 rounded-xl shadow overflow-x-auto">
     <h3 class="text-gray-700 font-semibold mb-4">Recent Transactions</h3>
     <input type="text" id="searchTable" placeholder="Search..." class="mb-2 px-3 py-2 border rounded w-full sm:w-1/3 focus:outline-none focus:ring-2 focus:ring-blue-400">
-
     <table class="min-w-full divide-y divide-gray-200" id="transactionsTable">
       <thead class="bg-gray-50">
         <tr>
@@ -590,8 +519,8 @@ $predictedCertNextWeek = round(linear_regression_forecast($certWeeksNumeric, $ce
       </tbody>
     </table>
   </div>
-
 </main>
+
 
     </div>
 </div>
@@ -604,208 +533,252 @@ $predictedCertNextWeek = round(linear_regression_forecast($certWeeksNumeric, $ce
     </div>
 </div>
 <script>
-   // -------- Population Chart --------
-    const populationCtx = document.getElementById('populationChart').getContext('2d');
-    const populationChart = new Chart(populationCtx, {
-        type: 'line',
-        data: {
-           labels: <?= json_encode($weeksWithNext) ?>,
-datasets: [{
-    label: 'Residents per Week',
-    data: <?= json_encode($residentsPerWeekWithNull) ?>,
-    borderColor: 'rgba(59, 130, 246, 1)',
-    backgroundColor: 'rgba(59, 130, 246, 0.2)',
-    fill: true,
-    tension: 0.3
-}, {
-    label: 'Predicted Next Week',
-    data: Array(<?= count($residentsPerWeek) ?>).fill(null).concat([<?= $predictedPopulationNextWeek ?>]),
-    borderColor: 'rgba(16, 185, 129, 1)',
-    borderDash: [5,5],
-    fill: false,
-    tension: 0.3
-}]
+const COLORS = {
+    blue:'#3B82F6', lightBlue:'#60A5FA', pink:'#EC4899', green:'#10B981',
+    yellow:'#FACC15', red:'#EF4444', purple:'#A855F7', cyan:'#06B6D4', gray:'#4B5563'
+};
 
+// Animate counters slowly & smoothly
+function animateCounter(id, value){
+    const elem = document.getElementById(id);
+    if(!elem) return;
+    const duration = 2000; // 2 seconds
+    const startTime = performance.now();
+
+    function update(currentTime){
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const currentValue = Math.floor(progress * value);
+        elem.innerText = id==='monthlyRevenue' ? '₱'+currentValue.toLocaleString() : currentValue;
+        if(progress < 1) requestAnimationFrame(update);
+        else elem.innerText = id==='monthlyRevenue' ? '₱'+value.toLocaleString() : value;
+    }
+
+    requestAnimationFrame(update);
+}
+
+// Initialize all charts
+function initCharts(){
+    // Population Chart
+    const populationCtx = document.getElementById('populationChart').getContext('2d');
+    const gradient = populationCtx.createLinearGradient(0,0,0,200);
+    gradient.addColorStop(0,'rgba(16,185,129,0.2)');
+    gradient.addColorStop(1,'rgba(16,185,129,0)');
+
+    new Chart(populationCtx,{
+        type:'line',
+        data:{
+            labels: <?= json_encode($weeksWithNext) ?>,
+            datasets:[
+                {
+                    label:'Residents per Week',
+                    data: <?= json_encode($residentsPerWeekWithNull) ?>,
+                    borderColor: COLORS.blue,
+                    backgroundColor:'rgba(59,130,246,0.3)',
+                    fill:true,
+                    tension:0.3,
+                    pointBackgroundColor: COLORS.blue
+                },
+                {
+                    label:'Forecast Next Week',
+                    data: Array(<?= count($residentsPerWeek) ?>).fill(null).concat([<?= $predictedPopulationNextWeek ?>]),
+                    borderColor: COLORS.green,
+                    borderDash:[5,5],
+                    fill: true,
+                    backgroundColor: gradient,
+                    tension:0.3,
+                    pointBackgroundColor: COLORS.pink,
+                    pointRadius: 6
+                }
+            ]
         },
-        options: {
-            responsive: true,
-            plugins: { legend: { position: 'top' } },
-            scales: { y: { beginAtZero: true } }
+        options:{
+            responsive:true,
+            plugins:{
+                legend:{position:'top'},
+                tooltip:{
+                    callbacks:{
+                        label: function(context){
+                            if(context.dataIndex === <?= count($residentsPerWeek) ?>) return 'Forecast: ' + context.formattedValue;
+                            return 'Actual: ' + context.formattedValue;
+                        }
+                    }
+                }
+            },
+            scales:{y:{beginAtZero:true}},
+            animation:{duration:2000, easing:'easeOutCubic'}
         }
     });
 
-    // -------- Certificate Requests Chart --------
+    // Certificate Chart
     const certificateCtx = document.getElementById('certificateChart').getContext('2d');
-    const certificateChart = new Chart(certificateCtx, {
-        type: 'bar',
-        data: {
+    new Chart(certificateCtx,{
+        type:'bar',
+        data:{
             labels: <?= json_encode($certWeeksNumeric) ?>,
-            datasets: [{
-                label: 'Certificates per Week',
-                data: <?= json_encode($certPerWeek) ?>,
-                backgroundColor: 'rgba(34, 197, 94, 0.6)',
-                borderColor: 'rgba(34, 197, 94, 1)',
-                borderWidth: 1
-            },{
-                label: 'Predicted Next Week',
-                data: <?= json_encode($certPerWeek) ?>.concat([<?= $predictedCertNextWeek ?>]),
-                type: 'line',
-                borderColor: 'rgba(239, 68, 68, 1)',
-                borderDash: [5,5],
-                fill: false,
-                tension: 0.3
+            datasets:[
+                {
+                    label:'Certificates per Week',
+                    data: <?= json_encode($certPerWeek) ?>,
+                    backgroundColor:'rgba(16,185,129,0.6)',
+                    borderColor: COLORS.green,
+                    borderWidth:1
+                },
+                {
+                    label:'Predicted Next Week',
+                    data: <?= json_encode($certPerWeek) ?>.concat([<?= $predictedCertNextWeek ?>]),
+                    type:'line',
+                    borderColor: COLORS.red,
+                    borderDash:[5,5],
+                    fill:false,
+                    tension:0.3
+                }
+            ]
+        },
+        options:{
+            responsive:true,
+            plugins:{legend:{position:'top'}},
+            scales:{y:{beginAtZero:true}},
+            animation:{duration:2000, easing:'easeOutCubic'}
+        }
+    });
+
+    // Decision Support Chart
+    const ctxDecision = document.getElementById('decisionSupportChart').getContext('2d');
+    new Chart(ctxDecision,{
+        type:'bar',
+        data:{
+            labels:['Total Residents','Seniors','PWDs','Solo Parents','Voters','Households','Pending Certificates','Blotter Cases'],
+            datasets:[{
+                label:'Count',
+                data:[<?= $totalResidents ?>,<?= $seniorCount ?>,<?= $pwdCount ?>,<?= $soloParentCount ?>,<?= $voterCount ?>,<?= $totalHouseholds ?>,<?= $pendingCertificates ?>,<?= $blotterCount ?>],
+                backgroundColor:[COLORS.blue,COLORS.yellow,COLORS.purple,COLORS.pink,COLORS.cyan,COLORS.green,COLORS.red,COLORS.gray]
             }]
         },
-        options: {
-            responsive: true,
-            plugins: { legend: { position: 'top' } },
-            scales: { y: { beginAtZero: true } }
+        options:{
+            responsive:true,
+            plugins:{legend:{display:false},title:{display:true,text:'Decision Support Overview',font:{size:16,weight:'bold'}}},
+            scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.05)'}},x:{grid:{color:'rgba(0,0,0,0.05)'}}},
+            animation:{duration:2000, easing:'easeOutCubic'}
         }
     });
-document.querySelectorAll('#transactionsTable tbody tr').forEach(row=>{
-    row.addEventListener('click',e=>{
-        if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT')return;
-        const type=row.dataset.type?.toLowerCase();
-        const id=row.dataset.id;
-        if(type==='certificate')window.location.href=`certificate/certificate_requests.php?id=${id}`;
-        else if(type==='blotter')window.location.href=`blotter/blotter.php?id=${id}`;
-        else console.log('Unknown type:',type);
-    });
-});
-const ctxDecision = document.getElementById('decisionSupportChart').getContext('2d');
-new Chart(ctxDecision, {
-    type: 'bar',
-    data: {
-        labels: ['Total Residents', 'Seniors', 'PWDs', 'Solo Parents', 'Voters', 'Households', 'Pending Certificates', 'Blotter Cases'],
-        datasets: [{
-            label: 'Count',
-            data: [<?= $totalResidents ?>, <?= $seniorCount ?>, <?= $pwdCount ?>, <?= $soloParentCount ?>, <?= $voterCount ?>, <?= $totalHouseholds ?>, <?= $pendingCertificates ?>, <?= $blotterCount ?>],
-            backgroundColor: ['#1E40AF','#FACC15','#A855F7','#EC4899','#06B6D4','#10B981','#EF4444','#4B5563']
-        }]
-    },
-    options: {
-        responsive: true,
-        plugins: {
-            legend: { display: false },
-            title: {
-                display: true,
-                text: 'Decision Support Overview',
-                font: { size: 16, weight: 'bold' }
-            }
-        },
-        scales: {
-            y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' } },
-            x: { grid: { color: 'rgba(0,0,0,0.05)' } }
-        }
-    }
-});
 
+    // Age Distribution Pie Chart
+    const ctxAgeDistribution = document.getElementById('ageDistributionChart').getContext('2d');
+    new Chart(ctxAgeDistribution,{
+        type:'pie',
+        data:{
+            labels:['0-17 yrs old','18-35 yrs old','36-50 yrs old','51+ yrs old'],
+            datasets:[{
+                data:[<?= $ageData['0-17'] ?>,<?= $ageData['18-35'] ?>,<?= $ageData['36-50'] ?>,<?= $ageData['51+'] ?>],
+                backgroundColor:[COLORS.blue,COLORS.cyan,COLORS.purple,COLORS.pink],
+                borderWidth:1
+            }]
+        },
+        plugins:[ChartDataLabels],
+        options:{
+            responsive:true,
+            layout:{padding:20},
+            plugins:{
+                legend:{display:false},
+                datalabels:{
+                    color:'#000',
+                    formatter:(value,ctx)=>ctx.chart.data.labels[ctx.dataIndex]+" ("+value+")",
+                    anchor:'end',
+                    align:'end',
+                    offset:10
+                }
+            },
+            cutout:'0%',
+            radius:'70%',
+            animation:{animateRotate:true,duration:2000,easing:'easeOutCubic'},
+            onClick:function(evt,activeEls){
+                if(activeEls.length>0){
+                    const index=activeEls[0].index;
+                    const label=this.data.labels[index];
+                    let ageFilter='';
+                    if(label.includes('0-17')) ageFilter='0-17';
+                    else if(label.includes('18-35')) ageFilter='18-35';
+                    else if(label.includes('36-50')) ageFilter='36-50';
+                    else if(label.includes('51+')) ageFilter='51+';
+                    window.location.href='residents/resident.php?filter='+encodeURIComponent(ageFilter);
+                }
+            }
+        }
+    });
+}
+
+// DOMContentLoaded
 document.addEventListener('DOMContentLoaded',()=>{
     const loginSuccessMsg=<?= json_encode($loginSuccessMsg) ?>;
     const modal=document.getElementById('successModal');
     const successMessage=document.getElementById('successMessage');
     const closeBtn=document.getElementById('closeSuccessModal');
     const okBtn=document.getElementById('okSuccessBtn');
-    if(loginSuccessMsg&&loginSuccessMsg.length>0){
-        successMessage.innerText=loginSuccessMsg;
+
+    if(loginSuccessMsg && loginSuccessMsg.length>0){
+        successMessage.innerText = loginSuccessMsg;
         modal.classList.remove('hidden');
         modal.classList.add('flex');
     }
-    closeBtn.addEventListener('click',()=>{modal.classList.add('hidden');modal.classList.remove('flex');});
-    okBtn.addEventListener('click',()=>{modal.classList.add('hidden');modal.classList.remove('flex');});
-});
 
-const toggleSidebar=document.getElementById('toggleSidebar');
-const sidebar=document.getElementById('sidebar');
-toggleSidebar.addEventListener('click',()=>{
-    sidebar.classList.toggle('sidebar-collapsed');
-    toggleSidebar.textContent=toggleSidebar.textContent==='chevron_left'?'chevron_right':'chevron_left';
-});
+    closeBtn.addEventListener('click',()=>{modal.classList.add('hidden'); modal.classList.remove('flex');});
+    okBtn.addEventListener('click',()=>{modal.classList.add('hidden'); modal.classList.remove('flex');});
 
-const stats={
-    totalResidents:<?= $totalResidents ?>,
-    activePermits:<?= $activePermits??0 ?>,
-    pendingRequests:<?= $pendingCertificates ?>,
-    seniorCitizens:<?= $seniorCount ?>,
-    blotterCases:<?= $blotterCount ?>,
-    voters:<?= $voterCount ?>,
-    households:<?= $totalHouseholds??0 ?>
-};
+    initCharts();
 
-for(const key in stats){
-    let elem=document.getElementById(key);
-    if(!elem)continue;
-    let count=0;
-    const interval=setInterval(()=>{
-        if(count>=stats[key]){
-            elem.innerText=key==='monthlyRevenue'?'₱'+stats[key].toLocaleString():stats[key];
-            clearInterval(interval);
-        }else{
-            elem.innerText=key==='monthlyRevenue'?'₱'+count.toLocaleString():count;
-            count+=Math.ceil(stats[key]/100);
-        }
-    },10);
-}
+    // Animate counters on scroll
+    const stats = {
+        totalResidents: <?= $totalResidents ?>,
+        activePermits: <?= $activePermits??0 ?>,
+        pendingRequests: <?= $pendingCertificates ?>,
+        seniorCitizens: <?= $seniorCount ?>,
+        blotterCases: <?= $blotterCount ?>,
+        voters: <?= $voterCount ?>,
+        households: <?= $totalHouseholds??0 ?>
+    };
 
-
-
-const ctxAgeDistribution=document.getElementById('ageDistributionChart').getContext('2d');
-new Chart(ctxAgeDistribution,{
-    type:'pie',
-    data:{
-        labels:['0-17 yrs old','18-35 yrs old','36-50 yrs old','51+ yrs old'],
-        datasets:[{
-            data:[<?= $ageData['0-17'] ?>,<?= $ageData['18-35'] ?>,<?= $ageData['36-50'] ?>,<?= $ageData['51+'] ?>],
-            backgroundColor:['#1E40AF','#3B82F6','#2563EB','#60A5FA'],
-            borderWidth:1
-        }]
-    },
-    plugins:[ChartDataLabels],
-    options:{
-        responsive:true,
-        layout:{padding:20},
-        plugins:{
-            legend:{display:false},
-            datalabels:{
-                color:'#000',
-                formatter:(value,ctx)=>ctx.chart.data.labels[ctx.dataIndex]+" ("+value+")",
-                anchor:'end',
-                align:'end',
-                offset:10
+    const observer = new IntersectionObserver(entries=>{
+        entries.forEach(entry=>{
+            if(entry.isIntersecting){
+                const id = entry.target.id;
+                if(stats[id]) animateCounter(id, stats[id]);
+                entry.target.classList.add('fadeInUp');
+                observer.unobserve(entry.target);
             }
-        },
-        cutout:'0%',
-        radius:'70%',
-        animation:{
-            animateRotate:true,
-            duration:1500,
-            easing:'easeOutCubic'
-        },
-        onClick:function(evt,activeEls){
-            if(activeEls.length>0){
-                const index=activeEls[0].index;
-                const label=this.data.labels[index];
-                let ageFilter='';
-                if(label.includes('0-17'))ageFilter='0-17';
-                else if(label.includes('18-35'))ageFilter='18-35';
-                else if(label.includes('36-50'))ageFilter='36-50';
-                else if(label.includes('51+'))ageFilter='51+';
-                window.location.href='residents/resident.php?filter='+encodeURIComponent(ageFilter);
-            }
-        }
-    }
+        });
+    }, {threshold:0.3});
+
+    document.querySelectorAll('.stat-counter,.chart-card').forEach(el=>observer.observe(el));
 });
 
+// Table row navigation
+document.querySelectorAll('#transactionsTable tbody tr').forEach(row=>{
+    row.addEventListener('click',e=>{
+        if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT') return;
+        const type=row.dataset.type?.toLowerCase();
+        const id=row.dataset.id;
+        if(type==='certificate') window.location.href=`certificate/certificate_requests.php?id=${id}`;
+        else if(type==='blotter') window.location.href=`blotter/blotter.php?id=${id}`;
+    });
+});
 
+// Search filter
 document.getElementById('searchTable').addEventListener('input',function(){
     const filter=this.value.toLowerCase();
     document.querySelectorAll('#transactionsTable tbody tr').forEach(row=>row.style.display=row.innerText.toLowerCase().includes(filter)?'':'none');
 });
 
+// Notification dropdown
 const notificationBtn=document.getElementById('notificationBtn');
 const notificationDropdown=document.getElementById('notificationDropdown');
+const notificationWrapper=document.getElementById('notificationWrapper');
+
 notificationBtn.addEventListener('click',()=>notificationDropdown.classList.toggle('hidden'));
-document.addEventListener('click',e=>{if(!notificationWrapper.contains(e.target))notificationDropdown.classList.add('hidden');});
+document.addEventListener('click',e=>{
+    if(!notificationWrapper.contains(e.target)) notificationDropdown.classList.add('hidden');
+});
+
 document.querySelectorAll('.notification-item').forEach(item=>{
     item.addEventListener('click',()=>{
         const notificationId=item.dataset.id;
@@ -815,7 +788,7 @@ document.querySelectorAll('.notification-item').forEach(item=>{
             const countBadge=document.getElementById('notificationCount');
             if(countBadge){
                 let count=parseInt(countBadge.innerText)-1;
-                if(count<=0)countBadge.remove();
+                if(count<=0) countBadge.remove();
                 else countBadge.innerText=count;
             }
         });
@@ -823,12 +796,36 @@ document.querySelectorAll('.notification-item').forEach(item=>{
     });
 });
 
+// User dropdown
 const userBtn=document.getElementById('userBtn');
 const userDropdown=document.getElementById('userDropdown');
 userBtn.addEventListener('click',()=>userDropdown.classList.toggle('hidden'));
-document.addEventListener('click',e=>{if(!userBtn.contains(e.target)&&!userDropdown.contains(e.target))userDropdown.classList.add('hidden');});
+document.addEventListener('click',e=>{
+    if(!userBtn.contains(e.target)&&!userDropdown.contains(e.target)) userDropdown.classList.add('hidden');
+});
+
+// Sidebar toggle
+const toggleSidebar=document.getElementById('toggleSidebar');
+const sidebar=document.getElementById('sidebar');
+toggleSidebar.addEventListener('click',()=>{
+    sidebar.classList.toggle('sidebar-collapsed');
+    toggleSidebar.textContent = toggleSidebar.textContent==='chevron_left'?'chevron_right':'chevron_left';
+});
 </script>
 
+<style>
+.fadeInUp{
+    opacity:0;
+    transform:translateY(50px);
+    animation:fadeUp 1s forwards;
+}
+@keyframes fadeUp{
+    to{opacity:1;transform:translateY(0);}
+}
+.chart-card, .stat-counter{
+    transition:all 0.8s ease-out;
+}
+</style>
 
 
 </body>

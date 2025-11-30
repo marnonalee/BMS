@@ -173,126 +173,149 @@ $systemLogoPath = '../' . $systemLogo;
   </div>
 </header>
 
-        <main class="flex-1 overflow-y-auto p-6">
-        <div id="addPanel" class="hidden bg-white shadow-lg p-6 mb-6 rounded-2xl max-w-2xl mx-auto relative">
+<main class="flex-1 overflow-y-auto p-6">
+
+    <!-- Add Official Modal -->
+    <div id="addPanelBackdrop" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40"></div>
+    <div id="addPanel" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white shadow-lg p-6 rounded-2xl max-w-2xl w-full relative transform scale-90 transition-transform duration-200">
             <button onclick="closeAddPanel()" class="absolute top-3 right-3 material-icons text-gray-600 hover:text-gray-800 text-2xl cursor-pointer">close</button>
-
             <h2 class="text-2xl font-bold mb-6 text-gray-800">Add Barangay Official</h2>
-
             <form action="add_official.php" method="POST" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            <div class="md:col-span-2 flex flex-col items-center">
-                <label class="block font-semibold mb-2 text-gray-700">Photo</label>
-                <div class="h-32 w-32 rounded-full overflow-hidden mb-2 border border-gray-300 shadow-sm">
-                <img id="addPhotoPreview" class="object-cover h-full w-full rounded-full" src="../uploads/default-avatar.jpg">
+                <div class="md:col-span-2 flex flex-col items-center">
+                    <label class="block font-semibold mb-2 text-gray-700">Photo</label>
+                    <div class="h-32 w-32 rounded-full overflow-hidden mb-2 border border-gray-300 shadow-sm">
+                        <img id="addPhotoPreview" class="object-cover h-full w-full rounded-full" src="../uploads/default-avatar.jpg">
+                    </div>
+                    <input type="file" name="photo" id="addPhotoInput" class="w-full text-sm text-gray-700 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400" accept="image/*">
                 </div>
-                <input type="file" name="photo" id="addPhotoInput" class="w-full text-sm text-gray-700 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400" accept="image/*">
-            </div>
-
-            <div>
-                <label class="block font-semibold mb-2 text-gray-700">Resident</label>
-                <input type="text" id="residentInput" placeholder="Type resident name..." required class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
-                <ul id="residentList" class="border mt-1 max-h-40 overflow-y-auto hidden bg-white absolute w-full z-10 shadow rounded-lg"></ul>
-            </div>
-
-            <div>
-                <label class="block font-semibold mb-2 text-gray-700">Position</label>
-                <select name="position_id" required class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
-                <?php foreach($positionsList as $p):
-                    $count = $positionCounts[$p['id']] ?? 0;
-                    $disabled = ($count >= $p['limit']) ? 'disabled' : '';
-                ?>
-                    <option value="<?= $p['id'] ?>" <?= $disabled ? 'disabled' : '' ?>>
-                        <?= htmlspecialchars($p['position_name']) ?><?= $disabled ? ' (Full)' : '' ?>
-                    </option>
-                <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div>
-                <label class="block font-semibold mb-2 text-gray-700">Start Date</label>
-                <input type="date" name="start_date" required class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
-            </div>
-
-            <div>
-                <label class="block font-semibold mb-2 text-gray-700">End Date</label>
-                <input type="date" name="end_date" required class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
-            </div>
-
-            <div class="md:col-span-2 flex justify-end gap-3 mt-4">
-                <button type="submit" class="bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600 shadow font-medium text-sm">Add</button>
-                <button type="button" onclick="closeAddPanel()" class="bg-gray-400 text-white px-6 py-2 rounded-lg hover:bg-gray-500 shadow text-sm">Cancel</button>
-            </div>
-
+                <div>
+                    <label class="block font-semibold mb-2 text-gray-700">Resident</label>
+                    <input type="text" id="residentInput" placeholder="Type resident name..." required class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                    <ul id="residentList" class="border mt-1 max-h-40 overflow-y-auto hidden bg-white absolute w-full z-10 shadow rounded-lg"></ul>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2 text-gray-700">Position</label>
+                    <select name="position_id" required class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                        <?php foreach($positionsList as $p):
+                            $count = $positionCounts[$p['id']] ?? 0;
+                            $disabled = ($count >= $p['limit']) ? 'disabled' : '';
+                        ?>
+                            <option value="<?= $p['id'] ?>" <?= $disabled ? 'disabled' : '' ?>>
+                                <?= htmlspecialchars($p['position_name']) ?><?= $disabled ? ' (Full)' : '' ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2 text-gray-700">Start Date</label>
+                    <input type="date" name="start_date" required class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2 text-gray-700">End Date</label>
+                    <input type="date" name="end_date" required class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                </div>
+                <div class="md:col-span-2 flex justify-end gap-3 mt-4">
+                    <button type="submit" class="bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600 shadow font-medium text-sm">Add</button>
+                    <button type="button" onclick="closeAddPanel()" class="bg-gray-400 text-white px-6 py-2 rounded-lg hover:bg-gray-500 shadow text-sm">Cancel</button>
+                </div>
             </form>
         </div>
+    </div>
 
-        <div id="editPanel" class="hidden bg-white shadow-lg p-6 mb-6 rounded-2xl max-w-2xl mx-auto relative">
+    <!-- Edit Official Modal -->
+    <div id="editPanelBackdrop" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40"></div>
+    <div id="editPanel" class="hidden fixed inset-0 z-50 flex items-center justify-center">
+        <div class="bg-white shadow-lg p-6 rounded-2xl max-w-2xl w-full relative transform scale-90 transition-transform duration-200">
             <button onclick="closeEditPanel()" class="absolute top-3 right-3 material-icons text-gray-600 hover:text-gray-800 text-2xl cursor-pointer">close</button>
             <h2 class="text-2xl font-bold mb-6 text-gray-800">Edit Barangay Official</h2>
-
             <form id="editForm" action="update_official.php" method="POST" enctype="multipart/form-data" class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <input type="hidden" name="official_id" id="editOfficialId">
-
-            <div class="md:col-span-2 flex flex-col items-center">
-                <label class="block font-semibold mb-2 text-gray-700">Photo</label>
-                <div class="mb-2 border rounded-full overflow-hidden w-32 h-32 shadow-sm">
-                <img id="editPhotoPreview" class="object-cover w-32 h-32 rounded-full">
+                <input type="hidden" name="official_id" id="editOfficialId">
+                <div class="md:col-span-2 flex flex-col items-center">
+                    <label class="block font-semibold mb-2 text-gray-700">Photo</label>
+                    <div class="mb-2 border rounded-full overflow-hidden w-32 h-32 shadow-sm">
+                        <img id="editPhotoPreview" class="object-cover w-32 h-32 rounded-full">
+                    </div>
+                    <input type="file" name="photo" id="editPhotoInput" class="w-full text-sm text-gray-700 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400">
                 </div>
-                <input type="file" name="photo" id="editPhotoInput" class="w-full text-sm text-gray-700 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400">
-            </div>
-
-            <div>
-                <label class="block font-semibold mb-2 text-gray-700">Resident</label>
-                <select name="resident_id" id="editResident" class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
-                <?php foreach($residentsList as $res):
-                    $isAssigned = in_array($res['resident_id'], $assignedResidentsIds);
-                ?>
-                    <option value="<?= $res['resident_id'] ?>" <?= $isAssigned ? 'disabled' : '' ?>>
-                    <?= htmlspecialchars($res['first_name'].' '.$res['last_name']) ?><?= $isAssigned ? ' (Already in Position)' : '' ?>
-                    </option>
-                <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div>
-                <label class="block font-semibold mb-2 text-gray-700">Position</label>
-                <select name="position_id" id="editPosition" class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
-                <?php foreach($positionsList as $p):
-                    $count = $positionCounts[$p['id']] ?? 0;
-                    $disabled = ($count >= $p['limit']) ? 'disabled' : '';
-                ?>
-                    <option value="<?= $p['id'] ?>" <?= $disabled ? 'disabled' : '' ?>>
-                    <?= htmlspecialchars($p['position_name']) ?><?= $disabled ? ' (Full)' : '' ?>
-                    </option>
-                <?php endforeach; ?>
-                </select>
-            </div>
-
-            <div>
-                <label class="block font-semibold mb-2 text-gray-700">Start Date</label>
-                <input type="date" name="start_date" id="editStart" class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" required>
-            </div>
-
-            <div>
-                <label class="block font-semibold mb-2 text-gray-700">End Date</label>
-                <input type="date" name="end_date" id="editEnd" class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" required>
-            </div>
-
-            <div class="md:col-span-2 flex justify-end gap-3 mt-4">
-                <button type="submit" class="bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600 shadow font-medium text-sm">Update</button>
-                <button type="button" onclick="closeEditPanel()" class="bg-gray-400 text-white px-6 py-2 rounded-lg hover:bg-gray-500 shadow text-sm">Cancel</button>
-            </div>
-
+                <div>
+                    <label class="block font-semibold mb-2 text-gray-700">Resident</label>
+                    <select name="resident_id" id="editResident" class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                        <?php foreach($residentsList as $res):
+                            $isAssigned = in_array($res['resident_id'], $assignedResidentsIds);
+                        ?>
+                            <option value="<?= $res['resident_id'] ?>" <?= $isAssigned ? 'disabled' : '' ?>>
+                                <?= htmlspecialchars($res['first_name'].' '.$res['last_name']) ?><?= $isAssigned ? ' (Already in Position)' : '' ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2 text-gray-700">Position</label>
+                    <select name="position_id" id="editPosition" class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                        <?php foreach($positionsList as $p):
+                            $count = $positionCounts[$p['id']] ?? 0;
+                            $disabled = ($count >= $p['limit']) ? 'disabled' : '';
+                        ?>
+                            <option value="<?= $p['id'] ?>" <?= $disabled ? 'disabled' : '' ?>>
+                                <?= htmlspecialchars($p['position_name']) ?><?= $disabled ? ' (Full)' : '' ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2 text-gray-700">Start Date</label>
+                    <input type="date" name="start_date" id="editStart" class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" required>
+                </div>
+                <div>
+                    <label class="block font-semibold mb-2 text-gray-700">End Date</label>
+                    <input type="date" name="end_date" id="editEnd" class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400" required>
+                </div>
+                <div class="md:col-span-2 flex justify-end gap-3 mt-4">
+                    <button type="submit" class="bg-emerald-500 text-white px-6 py-2 rounded-lg hover:bg-emerald-600 shadow font-medium text-sm">Update</button>
+                    <button type="button" onclick="closeEditPanel()" class="bg-gray-400 text-white px-6 py-2 rounded-lg hover:bg-gray-500 shadow text-sm">Cancel</button>
+                </div>
             </form>
         </div>
+    </div>
 
-        <!-- Officials Grid -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-6 auto-rows-fr">
-            <?php if ($result->num_rows > 0): ?>
-            <?php while($o = $result->fetch_assoc()): ?>
-                <div class="bg-white shadow-md rounded-2xl overflow-hidden cursor-pointer hover:shadow-xl transition flex flex-col items-center"
-                    onclick='openModal(<?= json_encode($o) ?>)'>
+    <!-- View Official Modal -->
+    <div id="officialModalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40"></div>
+    <div id="officialModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+        <div class="bg-white shadow-2xl w-full max-w-2xl p-6 rounded-2xl relative overflow-hidden">
+            <button onclick="closeModal()" 
+                    class="absolute top-4 right-4 material-icons text-gray-600 hover:text-gray-800 cursor-pointer text-3xl transition">
+                close
+            </button>
+            <div id="viewContent" class="space-y-6">
+                <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
+                    <div id="modalPhoto" 
+                         class="h-40 w-40 md:w-40 md:h-40 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0 shadow-inner">
+                        <img id="modalPhotoImg" class="w-full h-full object-cover" src="" alt="Official Photo">
+                    </div>
+                    <div class="flex-1 text-center md:text-left">
+                        <h2 id="modalName" class="text-2xl font-bold text-gray-800 mb-2"></h2>
+                        <p id="modalPosition" class="text-lg text-gray-700 mb-1"></p>
+                        <p id="modalDept" class="text-base text-gray-600 mb-1"></p>
+                        <p id="modalTerm" class="text-sm italic text-gray-500"></p>
+                    </div>
+                </div>
+                <div class="flex justify-center md:justify-end">
+                    <button onclick="switchToEdit()" 
+                            class="bg-yellow-400 hover:bg-yellow-500 text-white px-5 py-2 rounded-lg shadow font-medium text-sm transition">
+                        Edit
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Officials Grid -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-6 auto-rows-fr">
+        <?php if ($result->num_rows > 0): ?>
+        <?php while($o = $result->fetch_assoc()): ?>
+            <div class="bg-white shadow-md rounded-2xl overflow-hidden cursor-pointer hover:shadow-xl transition flex flex-col items-center"
+                onclick='openModal(<?= json_encode($o) ?>)'>
                 <div class="w-full h-60 bg-gray-100 flex items-center justify-center overflow-hidden">
                     <img src="../uploads/<?= $o['photo'] && trim($o['photo']) !== '' ? htmlspecialchars($o['photo']) : 'official.jpg' ?>" 
                         class="h-full w-auto object-cover">
@@ -303,56 +326,56 @@ $systemLogoPath = '../' . $systemLogo;
                     <?php if(!empty($o['department'])): ?>
                     <p class="text-xs text-gray-500 truncate"><strong>Department:</strong> <?= htmlspecialchars($o['department']) ?></p>
                     <?php endif; ?>
-                    <p class="text-xs text-gray-500 mt-1">
-                    <?= date('M d, Y', strtotime($o['start_date'])) ?> - <?= date('M d, Y', strtotime($o['end_date'])) ?>
+                   <p class="text-xs text-gray-500 mt-1">
+                        <?= date('M d, Y', strtotime($o['start_date'])) ?> – <?= date('M d, Y', strtotime($o['end_date'])) ?>
                     </p>
-                </div>
-                </div>
-            <?php endwhile; ?>
-            <?php endif; ?>
-        </div>
 
-        </main>
+                </div>
+            </div>
+        <?php endwhile; ?>
+        <?php endif; ?>
+    </div>
+
+</main>
   </div>
 </div>
+<!-- Modal Backdrop -->
+<div id="officialModalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40"></div>
 
-
-    <div id="officialModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center p-4 z-50">
+<!-- Official Modal -->
+<div id="officialModal" class="fixed inset-0 hidden z-50 flex items-center justify-center p-4">
     <div class="bg-white shadow-2xl w-full max-w-2xl p-6 rounded-2xl relative overflow-hidden">
-        
         <button onclick="closeModal()" 
                 class="absolute top-4 right-4 material-icons text-gray-600 hover:text-gray-800 cursor-pointer text-3xl transition">
-        close
+            close
         </button>
 
         <div id="viewContent" class="space-y-6">
-        
-        <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
-            <div id="modalPhoto" 
-                class="h-40 w-40 md:w-40 md:h-40 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0 shadow-inner">
-            <img id="modalPhotoImg" class="w-full h-full object-cover" src="" alt="Official Photo">
+            <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
+                <div id="modalPhoto" 
+                    class="h-40 w-40 md:w-40 md:h-40 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0 shadow-inner">
+                    <img id="modalPhotoImg" class="w-full h-full object-cover" src="" alt="Official Photo">
+                </div>
+
+                <div class="flex-1 text-center md:text-left">
+                    <h2 id="modalName" class="text-2xl font-bold text-gray-800 mb-2"></h2>
+                    <p id="modalPosition" class="text-lg text-gray-700 mb-1"></p>
+                    <p id="modalDept" class="text-base text-gray-600 mb-1"></p>
+                    <p id="modalTerm" class="text-sm italic text-gray-500"></p>
+                </div>
             </div>
 
-            <div class="flex-1 text-center md:text-left">
-            <h2 id="modalName" class="text-2xl font-bold text-gray-800 mb-2"></h2>
-            <p id="modalPosition" class="text-lg text-gray-700 mb-1"></p>
-            <p id="modalDept" class="text-base text-gray-600 mb-1"></p>
-            <p id="modalTerm" class="text-sm italic text-gray-500"></p>
+            <?php if($role === 'admin'): ?>
+            <div class="flex justify-center md:justify-end">
+                <button onclick="switchToEdit()" 
+                        class="bg-yellow-400 hover:bg-yellow-500 text-white px-5 py-2 rounded-lg shadow font-medium text-sm transition">
+                    Edit
+                </button>
             </div>
-        </div>
-
-        <?php if($role === 'admin'): ?>
-        <div class="flex justify-center md:justify-end">
-            <button onclick="switchToEdit()" 
-                    class="bg-yellow-400 hover:bg-yellow-500 text-white px-5 py-2 rounded-lg shadow font-medium text-sm transition">
-            Edit
-            </button>
-        </div>
-        <?php endif; ?>
-
+            <?php endif; ?>
         </div>
     </div>
-    </div>
+</div>
 
 
 
@@ -457,11 +480,24 @@ if(input && list){
     });
 
     document.querySelector('form').addEventListener('submit', function(e){
-        const residentId = input.dataset.residentId;
+        const residentId = input.dataset.residentId || document.getElementById('editResident')?.value;
         if(!residentId){
             e.preventDefault();
             alert('Please select a resident from the list.');
-        } else {
+            return;
+        }
+
+        const isAssigned = assignedResidents.includes(parseInt(residentId));
+        const editingResident = currentOfficial.resident_id == residentId;
+
+        if(isAssigned && !editingResident){
+            e.preventDefault();
+            if(!confirm("This resident is already assigned to another position. Do you want to overwrite?")){
+                return;
+            }
+        }
+
+        if(this.id !== "editForm"){
             const hidden = document.createElement('input');
             hidden.type = 'hidden';
             hidden.name = 'resident_id';
@@ -470,33 +506,87 @@ if(input && list){
             input.removeAttribute('name');
         }
     });
+
 }
 
-function openAddPanel(){ const addPanel = document.getElementById('addPanel'); const editPanel = document.getElementById('editPanel'); if(editPanel) editPanel.classList.add('hidden'); if(addPanel) addPanel.classList.remove('hidden'); }
-function closeAddPanel(){ const addPanel = document.getElementById('addPanel'); if(addPanel) addPanel.classList.add('hidden'); }
-function openEditPanel(){ const addPanel = document.getElementById('addPanel'); const editPanel = document.getElementById('editPanel'); if(addPanel) addPanel.classList.add('hidden'); if(editPanel) editPanel.classList.remove('hidden'); }
-function closeEditPanel(){ const editPanel = document.getElementById('editPanel'); if(editPanel) editPanel.classList.add('hidden'); }
+function openAddPanel() {
+    const addPanel = document.getElementById('addPanel');
+    const addBackdrop = document.getElementById('addPanelBackdrop');
+    const editPanel = document.getElementById('editPanel');
+    const editBackdrop = document.getElementById('editPanelBackdrop');
+
+    if(editPanel) editPanel.classList.add('hidden');
+    if(editBackdrop) editBackdrop.classList.add('hidden');
+
+    if(addPanel) addPanel.classList.remove('hidden');
+    if(addBackdrop) addBackdrop.classList.remove('hidden');
+}
+
+function closeAddPanel() {
+    const addPanel = document.getElementById('addPanel');
+    const addBackdrop = document.getElementById('addPanelBackdrop');
+
+    if(addPanel) addPanel.classList.add('hidden');
+    if(addBackdrop) addBackdrop.classList.add('hidden');
+}
+
+function openEditPanel() {
+    const addPanel = document.getElementById('addPanel');
+    const addBackdrop = document.getElementById('addPanelBackdrop');
+    const editPanel = document.getElementById('editPanel');
+    const editBackdrop = document.getElementById('editPanelBackdrop');
+
+    if(addPanel) addPanel.classList.add('hidden');
+    if(addBackdrop) addBackdrop.classList.add('hidden');
+
+    if(editPanel) editPanel.classList.remove('hidden');
+    if(editBackdrop) editBackdrop.classList.remove('hidden');
+}
+
+function closeEditPanel() {
+    const editPanel = document.getElementById('editPanel');
+    const editBackdrop = document.getElementById('editPanelBackdrop');
+
+    if(editPanel) editPanel.classList.add('hidden');
+    if(editBackdrop) editBackdrop.classList.add('hidden');
+}
+
+function formatDate(dateStr){
+    const d = new Date(dateStr);
+    const options = { year: 'numeric', month: 'short', day: 'numeric' };
+    return d.toLocaleDateString('en-US', options);
+}
 
 function openModal(o) {
     currentOfficial = o;
-    const modalPhoto = document.getElementById("modalPhoto");
-    if(modalPhoto) modalPhoto.innerHTML = `<img src="../uploads/${o.photo && o.photo.trim() !== '' ? o.photo : 'official.jpg'}" class="object-cover h-full w-full rounded">`;
-    const modalName = document.getElementById("modalName");
-    if(modalName) modalName.textContent = o.first_name + ' ' + o.last_name;
-    const modalPosition = document.getElementById("modalPosition");
-    if(modalPosition) modalPosition.textContent = "Position: " + o.position_name;
-    const modalTerm = document.getElementById("modalTerm");
-    if(modalTerm) modalTerm.textContent = "Term: " + o.start_date + " - " + o.end_date;
-    const officialModal = document.getElementById("officialModal");
-    if(officialModal){ officialModal.classList.remove("hidden"); officialModal.classList.add("flex"); }
-    const editContent = document.getElementById("editContent"); if(editContent) editContent.classList.add("hidden");
-    const viewContent = document.getElementById("viewContent"); if(viewContent) viewContent.classList.remove("hidden");
+    document.getElementById("modalPhoto").innerHTML = `<img src="../uploads/${o.photo && o.photo.trim() !== '' ? o.photo : 'official.jpg'}" class="object-cover h-full w-full rounded">`;
+    document.getElementById("modalName").textContent = o.first_name + ' ' + o.last_name;
+    document.getElementById("modalPosition").textContent = "Position: " + o.position_name;
+
+    const start = formatDate(o.start_date);
+    const end = formatDate(o.end_date);
+    document.getElementById("modalTerm").textContent = `Term: ${start} – ${end}`;
+
+    document.getElementById("officialModal").classList.remove("hidden");
+    document.getElementById("officialModal").classList.add("flex");
+    document.getElementById("officialModalBackdrop").classList.remove("hidden");
 }
-function closeModal() { const officialModal = document.getElementById("officialModal"); if(officialModal){ officialModal.classList.add("hidden"); officialModal.classList.remove("flex"); } }
+
+
+function closeModal() {
+    document.getElementById("officialModal").classList.add("hidden");
+    document.getElementById("officialModal").classList.remove("flex");
+    document.getElementById("officialModalBackdrop").classList.add("hidden");
+}
 
 function switchToEdit() {
-    closeModal();
-    const editPanel = document.getElementById("editPanel"); if(editPanel) editPanel.classList.remove("hidden");
+    closeModal(); // close the view modal
+
+    const editPanel = document.getElementById("editPanel");
+    const editBackdrop = document.getElementById("editPanelBackdrop");
+
+    if(editPanel) editPanel.classList.remove("hidden");
+    if(editBackdrop) editBackdrop.classList.remove("hidden");
 
     const editOfficialId = document.getElementById("editOfficialId");
     if(editOfficialId) editOfficialId.value = currentOfficial.id || currentOfficial.official_id;
@@ -537,10 +627,8 @@ function switchToEdit() {
     }
 }
 
-function closeEditPanel(){ const editPanel = document.getElementById("editPanel"); if(editPanel) editPanel.classList.add("hidden"); }
 function switchToView(){ const editContent = document.getElementById("editContent"); if(editContent) editContent.classList.add("hidden"); const viewContent = document.getElementById("viewContent"); if(viewContent) viewContent.classList.remove("hidden"); }
 
-// Photo preview
 const editPhotoInput = document.getElementById("editPhotoInput");
 const editPhotoPreview = document.getElementById("editPhotoPreview");
 if(editPhotoInput){

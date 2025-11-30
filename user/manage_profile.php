@@ -64,7 +64,7 @@ $systemLogoPath = '' . $systemLogo;
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Manage Profile</title>
+<title> Account Settings</title>
 <link rel="stylesheet" href="a.css">
 <script src="https://cdn.tailwindcss.com"></script>
 <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">

@@ -46,11 +46,6 @@ while ($row = $result->fetch_assoc()) {
         $row['last_name']
     );
 
-    // Compute age
-    $age = $row['birthdate'] 
-        ? floor((time() - strtotime($row['birthdate'])) / (365.25 * 24 * 60 * 60))
-        : null;
-
     // Full address
     $full_address = trim($row['resident_address'] . ' ' . $row['street']);
 
@@ -66,8 +61,8 @@ while ($row = $result->fetch_assoc()) {
         'voter_status' => $row['voter_status'], // Voter status
         'resident_address' => $row['resident_address'],
         'street' => $row['street'],
-        'full_address' => $full_address,
-        'age' => $age
+        'full_address' => $full_address
+        // 'age' removed
     ];
 }
 
