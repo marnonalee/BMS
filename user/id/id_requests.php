@@ -16,7 +16,6 @@ $receiptLink = null;
 if(isset($_POST['accept_id_request'])){
     $requestId = intval($_POST['request_id']);
 
-    // Update status to Approved
     $conn->query("UPDATE barangay_id_requests SET status='Approved', date_reviewed=NOW(), reviewed_by='$user_id' WHERE id='$requestId'");
 
     // Fetch details to generate receipt
@@ -27,13 +26,10 @@ if(isset($_POST['accept_id_request'])){
     WHERE r.id='$requestId'
 ")->fetch_assoc();
 
-
-    // Ensure receipts folder exists
     if(!is_dir("../receipts")){
         mkdir("../receipts", 0755, true);
     }
 
-    // Generate receipt HTML
     $timestamp = time();
     $receiptFile = "../receipts/receipt_".$req['id_number']."_".$timestamp.".html";
     $receiptHtml = "

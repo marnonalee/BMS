@@ -83,10 +83,10 @@ $systemLogoPath = '../' . $systemLogo;
       <?php if($role === 'admin'): ?>
         <div class="pt-4">
             <span class="px-4 py-2 text-white/70 uppercase text-xs tracking-wider sidebar-text">Requests</span>
-            <a href="requests/household_member_requests.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
+            <a href="../requests/household_member_requests.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
                 <span class="material-icons mr-3">group_add</span><span class="sidebar-text">Household Member Requests</span>
             </a>
-            <a href="requests/request_profile_update.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
+            <a href="../requests/request_profile_update.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
                 <span class="material-icons mr-3">pending_actions</span><span class="sidebar-text">Profile Update Requests</span>
             </a>
         </div>
@@ -141,7 +141,7 @@ $systemLogoPath = '../' . $systemLogo;
           <span class="material-icons mr-3">admin_panel_settings</span><span class="sidebar-text">System User</span>
         </a>
         <a href="../user_manage/log_activity.php" class="flex items-center px-4 py-3 rounded-md bg-white/10 backdrop-blur-sm transition-all">
-          <span class="material-icons mr-3">history</span><span class="sidebar-text">Log Activity</span>
+          <span class="material-icons mr-3">history</span><span class="sidebar-text">Activity Logs</span>
         </a>
         <a href="../user_manage/settings.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
           <span class="material-icons mr-3">settings</span><span class="sidebar-text">Settings</span>
@@ -156,65 +156,75 @@ $systemLogoPath = '../' . $systemLogo;
 </aside>
 <div class="flex-1 flex flex-col overflow-hidden bg-gray-50">
 <header class="flex items-center justify-between bg-white shadow-md px-6 py-4 rounded-b-2xl mb-6">
-<h2 class="text-2xl font-bold text-gray-800">Log Activity</h2>
+<h2 class="text-2xl font-bold text-gray-800">Activity Logs</h2>
 <div class="flex items-center space-x-3">
-<input type="text" id="searchInput" placeholder="Search..." class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 text-sm transition">
+
 <button id="clearLogsBtn" class="bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg shadow font-medium text-sm">Clear Logs</button>
 </div>
 </header>
 
 <main class="flex-1 overflow-y-auto p-6">
-<?php if(isset($_GET['cleared'])): ?>
-<div class="mb-4 p-3 bg-emerald-100 text-emerald-800 rounded-lg shadow">All logs have been cleared successfully.</div>
-<?php endif; ?>
+  <?php if(isset($_GET['cleared'])): ?>
+  <div class="mb-4 p-3 bg-emerald-100 text-emerald-800 rounded-lg shadow">
+    All logs have been cleared successfully.
+  </div>
+  <?php endif; ?>
 
-<div class="bg-white p-6 rounded-2xl shadow-lg overflow-x-auto">
-<div class="flex items-center mb-4 gap-2">
-<span class="text-gray-600 font-medium">Show</span>
-<select id="perPageSelect" class="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 transition" onchange="changePerPage(this.value)">
-<option value="50" <?= $perPage==50?'selected':'' ?>>50</option>
-<option value="100" <?= $perPage==100?'selected':'' ?>>100</option>
-<option value="200" <?= $perPage==200?'selected':'' ?>>200</option>
-</select>
-<span class="text-gray-600 font-medium">entries</span>
-</div>
+  <div class="bg-white p-6 rounded-2xl shadow-lg overflow-x-auto">
+    <!-- Controls: Show entries + Search -->
+    <div class="flex flex-col md:flex-row items-center mb-4 gap-2">
+      <div class="flex items-center gap-2">
+        <span class="text-gray-600 font-medium">Show</span>
+        <select id="perPageSelect" class="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 transition" onchange="changePerPage(this.value)">
+          <option value="50" <?= $perPage==50?'selected':'' ?>>50</option>
+          <option value="100" <?= $perPage==100?'selected':'' ?>>100</option>
+          <option value="200" <?= $perPage==200?'selected':'' ?>>200</option>
+        </select>
+        <span class="text-gray-600 font-medium">entries</span>
+      </div>
 
-<table id="logTable" class="min-w-full divide-y divide-gray-200">
-<thead class="bg-gray-100">
-<tr>
-<th class="px-6 py-3 text-left text-sm font-semibold text-gray-500 uppercase tracking-wider">ID</th>
-<th class="px-6 py-3 text-left text-sm font-semibold text-gray-500 uppercase tracking-wider">User</th>
-<th class="px-6 py-3 text-left text-sm font-semibold text-gray-500 uppercase tracking-wider">Action</th>
-<th class="px-6 py-3 text-left text-sm font-semibold text-gray-500 uppercase tracking-wider">Description</th>
-<th class="px-6 py-3 text-left text-sm font-semibold text-gray-500 uppercase tracking-wider">Date/Time</th>
-</tr>
-</thead>
-<tbody class="bg-white divide-y divide-gray-200">
-<?php 
-$count = $start + 1;
-$rowsExist = false;
-while($row = $logQuery->fetch_assoc()): 
-$rowsExist = true;
-?>
-<tr class="hover:bg-gray-50 transition cursor-pointer">
-<td class="px-6 py-4 text-sm"><?= $count ?></td>
-<td class="px-6 py-4 text-sm"><?= htmlspecialchars($row['username']) ?></td>
-<td class="px-6 py-4 text-sm"><?= htmlspecialchars($row['action']) ?></td>
-<td class="px-6 py-4 text-sm"><?= htmlspecialchars($row['description']) ?></td>
-<td class="px-6 py-4 text-sm"><?= $row['created_at'] ?></td>
-</tr>
-<?php 
-$count++;
-endwhile; 
-if(!$rowsExist): ?>
-<tr>
-<td colspan="5" class="text-center py-6 text-gray-400">No records found</td>
-</tr>
-<?php endif; ?>
-</tbody>
-</table>
-</div>
+      <!-- Search bar aligned to the right on md+ screens, full width on small screens -->
+      <input type="text" id="searchInput" placeholder="Search..." class="mt-2 md:mt-0 md:ml-auto px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 text-sm transition w-full md:w-auto">
+    </div>
+
+    <!-- Table -->
+    <table id="logTable" class="min-w-full divide-y divide-gray-200">
+      <thead class="bg-gray-100">
+        <tr>
+          <th class="px-6 py-3 text-left text-sm font-semibold text-gray-500 uppercase tracking-wider">ID</th>
+          <th class="px-6 py-3 text-left text-sm font-semibold text-gray-500 uppercase tracking-wider">User</th>
+          <th class="px-6 py-3 text-left text-sm font-semibold text-gray-500 uppercase tracking-wider">Action</th>
+          <th class="px-6 py-3 text-left text-sm font-semibold text-gray-500 uppercase tracking-wider">Description</th>
+          <th class="px-6 py-3 text-left text-sm font-semibold text-gray-500 uppercase tracking-wider">Date/Time</th>
+        </tr>
+      </thead>
+      <tbody class="bg-white divide-y divide-gray-200">
+        <?php 
+        $count = $start + 1;
+        $rowsExist = false;
+        while($row = $logQuery->fetch_assoc()): 
+          $rowsExist = true;
+        ?>
+        <tr class="hover:bg-gray-50 transition cursor-pointer">
+          <td class="px-6 py-4 text-sm"><?= $count ?></td>
+          <td class="px-6 py-4 text-sm"><?= htmlspecialchars($row['username']) ?></td>
+          <td class="px-6 py-4 text-sm"><?= htmlspecialchars($row['action']) ?></td>
+          <td class="px-6 py-4 text-sm"><?= htmlspecialchars($row['description']) ?></td>
+          <td class="px-6 py-4 text-sm"><?= date("M j, Y h:i A", strtotime($row['created_at'])) ?></td>
+        </tr>
+        <?php 
+        $count++;
+        endwhile; 
+        if(!$rowsExist): ?>
+        <tr>
+          <td colspan="5" class="text-center py-6 text-gray-400">No records found</td>
+        </tr>
+        <?php endif; ?>
+      </tbody>
+    </table>
+  </div>
 </main>
+
 </div>
 </div>
 
@@ -274,7 +284,15 @@ const noRow = document.getElementById('noDataRow');
 if(noRow) noRow.remove();
 }
 });
-
+document.addEventListener('DOMContentLoaded', () => {
+  const clearedMsg = document.querySelector('.mb-4.p-3.bg-emerald-100');
+  if(clearedMsg){
+    setTimeout(() => {
+      clearedMsg.classList.add('transition', 'opacity-0');
+      setTimeout(() => clearedMsg.remove(), 500);
+    }, 3000);
+  }
+});
 const clearLogsBtn = document.getElementById('clearLogsBtn');
 const clearLogsModal = document.getElementById('clearLogsModal');
 const cancelClear = document.getElementById('cancelClear');

@@ -133,7 +133,8 @@ $systemLogoPath = 'user/' . $systemLogo;
 
 
 <div class="relative min-h-screen bg-cover bg-center" style="background-image: url('<?= htmlspecialchars($loginBgPath) ?>');">
-  <div class="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4">
+ 
+  <div class="absolute inset-0 bg-gradient-to-b from-blue-500/40 via-blue-500/30 to-blue-500/50 flex items-center justify-center p-4">
 
     <div class="bg-white bg-opacity-95 rounded-2xl shadow-lg p-8 w-full max-w-md">
 

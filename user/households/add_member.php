@@ -11,7 +11,7 @@ $relationship = trim($data['relationship'] ?? '');
 $response = ['success' => false, 'message' => 'Something went wrong.'];
 
 if($household_id && $resident_id){
-    $check = $conn->query("SELECT household_id, is_family_head, is_archived FROM residents WHERE resident_id = $resident_id AND is_archived = 0");
+    $check = $conn->query("SELECT first_name, last_name, household_id, is_family_head, is_archived FROM residents WHERE resident_id = $resident_id AND is_archived = 0");
     $row = $check->fetch_assoc();
 
     if(!$row){
@@ -23,7 +23,7 @@ if($household_id && $resident_id){
     elseif($row['household_id'] && $row['household_id'] != 0){
         $response['message'] = "Resident is already assigned to a family.";
     } else {
-        $headQuery = $conn->query("SELECT resident_address, street FROM residents WHERE household_id = $household_id AND is_family_head = 1 AND is_archived = 0");
+        $headQuery = $conn->query("SELECT first_name, last_name, resident_address, street FROM residents WHERE household_id = $household_id AND is_family_head = 1 AND is_archived = 0");
         if($head = $headQuery->fetch_assoc()){
             $resident_address = $head['resident_address'];
             $street = $head['street'];
@@ -36,7 +36,7 @@ if($household_id && $resident_id){
 
                 $user_id = $_SESSION['user_id'] ?? 0;
                 $action = "Add Household Member";
-                $description = "Added resident_id $resident_id to household_id $household_id with relationship '$relationship'";
+                $description = "Added ".$row['first_name']." ".$row['last_name']." as '$relationship' to the family of ".$head['first_name']." ".$head['last_name'];
                 $logStmt = $conn->prepare("INSERT INTO log_activity (user_id, action, description) VALUES (?,?,?)");
                 $logStmt->bind_param("iss", $user_id, $action, $description);
                 $logStmt->execute();

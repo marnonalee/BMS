@@ -3,16 +3,14 @@ session_start();
 header('Content-Type: application/json');
 include '../../db.php';
 
-// Ensure user is logged in
 if (!isset($_SESSION["user_id"]) || !isset($_SESSION["role"])) {
     echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit;
 }
 
 $user_id = $_SESSION['user_id'];
-$user_role = $_SESSION['role']; // resident, staff, or admin
+$user_role = $_SESSION['role'];
 
-// Get POST data
 $input = json_decode(file_get_contents('php://input'), true);
 $blotter_id = isset($input['blotter_id']) ? intval($input['blotter_id']) : 0;
 $message = isset($input['message']) ? trim($input['message']) : '';
@@ -22,11 +20,9 @@ if (!$blotter_id || empty($message)) {
     exit;
 }
 
-// Determine receiver_id
 $receiver_id = null;
 
 if ($user_role === 'resident') {
-    // First: get latest staff/admin who replied to this blotter
     $receiverQuery = $conn->prepare("
         SELECT sender_id 
         FROM messages 
@@ -40,10 +36,7 @@ if ($user_role === 'resident') {
     if ($receiverResult->num_rows > 0) {
         $receiver_id = $receiverResult->fetch_assoc()['sender_id'];
     } else {
-        // fallback: pick the first staff/admin in users table
-        $staffQuery = $conn->prepare("
-            SELECT id FROM users WHERE role IN ('staff','admin') ORDER BY id ASC LIMIT 1
-        ");
+        $staffQuery = $conn->prepare("SELECT id FROM users WHERE role IN ('staff','admin') ORDER BY id ASC LIMIT 1");
         $staffQuery->execute();
         $staffResult = $staffQuery->get_result();
         if ($staffResult->num_rows > 0) {
@@ -54,7 +47,6 @@ if ($user_role === 'resident') {
     $receiverQuery->close();
 
 } else {
-    // staff/admin sends -> receiver is complainant resident's user_id
     $residentQuery = $conn->prepare("
         SELECT user_id FROM residents WHERE resident_id = (
             SELECT complainant_id FROM blotter_records WHERE blotter_id = ?
@@ -74,19 +66,44 @@ if (!$receiver_id) {
     exit;
 }
 
-// Insert message
 $insertQuery = $conn->prepare("
     INSERT INTO messages (sender_role, sender_id, receiver_id, blotter_id, content)
     VALUES (?, ?, ?, ?, ?)
 ");
 $insertQuery->bind_param("siiis", $user_role, $user_id, $receiver_id, $blotter_id, $message);
+$inserted = $insertQuery->execute();
+$insertQuery->close();
 
-if($insertQuery->execute()){
-    echo json_encode(['success'=>true,'message'=>'Message sent']);
-} else {
+if (!$inserted) {
     echo json_encode(['success'=>false,'message'=>'Failed to send message','error'=>$conn->error]);
+    exit;
 }
 
-$insertQuery->close();
+$notif_title = "New Message in Blotter #$blotter_id";
+$notif_message = $message;
+$notif_from_role = $user_role;
+$notif_type = "blotter_message";
+$notif_priority = "normal";
+$notif_action = "commented";
+
+$notifQuery = $conn->prepare("
+    INSERT INTO notifications 
+    (resident_id, message, from_role, title, type, priority, action_type, is_read, sent_email, date_created)
+    VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, NOW())
+");
+$notifQuery->bind_param(
+    "issssss",
+    $receiver_id,
+    $notif_message,
+    $notif_from_role,
+    $notif_title,
+    $notif_type,
+    $notif_priority,
+    $notif_action
+);
+$notifQuery->execute();
+$notifQuery->close();
+
+echo json_encode(['success'=>true,'message'=>'Message sent']);
 $conn->close();
 ?>

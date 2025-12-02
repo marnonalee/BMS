@@ -35,12 +35,21 @@ function logActivity($conn, $user_id, $action, $description = null) {
     $stmt->close();
 }
 
-function sendNotification($conn, $resident_id, $message, $title = "Barangay ID Request", $from_role = "system", $type = "general", $priority = "normal", $action_type = "updated") {
-    $stmt = $conn->prepare("INSERT INTO notifications (resident_id, message, from_role, title, type, priority, action_type, is_read, sent_email, date_created) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, NOW())");
+function sendNotification($conn, $resident_id, $message, $title = "Barangay ID Request", $from_role = null, $type = "general", $priority = "normal", $action_type = "updated") {
+    if ($from_role === null) {
+        $from_role = $_SESSION['role'] ?? 'system'; 
+    }
+
+    $stmt = $conn->prepare("
+        INSERT INTO notifications 
+        (resident_id, message, from_role, title, type, priority, action_type, is_read, sent_email, date_created) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, NOW())
+    ");
     $stmt->bind_param("issssss", $resident_id, $message, $from_role, $title, $type, $priority, $action_type);
     $stmt->execute();
     $stmt->close();
 }
+
 
 if (isset($_POST['update_status'])) {
     $requestId = intval($_POST['request_id']);
@@ -180,7 +189,7 @@ $systemLogoPath = '../' . $systemLogo;
           <span class="material-icons mr-3">admin_panel_settings</span><span class="sidebar-text">System User</span>
         </a>
         <a href="../user_manage/log_activity.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
-          <span class="material-icons mr-3">history</span><span class="sidebar-text">Log Activity</span>
+          <span class="material-icons mr-3">history</span><span class="sidebar-text">Activity Logs</span>
         </a>
         <a href="../user_manage/settings.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
           <span class="material-icons mr-3">settings</span><span class="sidebar-text">Settings</span>
@@ -201,22 +210,29 @@ $systemLogoPath = '../' . $systemLogo;
 <main class="flex-1 overflow-y-auto p-6">
   <div class="bg-white p-6 rounded-2xl shadow-lg overflow-x-auto">
 
-      <div class="flex justify-start mb-4 items-center gap-2">
+    <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-4 gap-4">
+      <div class="flex items-center gap-2">
           <span class="text-gray-600 font-medium">Show</span>
-          <select id="perPageSelect" class="border border-gray-300 px-3 py-2 rounded-lg focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 transition">
-            <option value="50" <?= $perPage == 50 ? 'selected' : '' ?>>50</option>
-            <option value="100" <?= $perPage == 100 ? 'selected' : '' ?>>100</option>
-            <option value="200" <?= $perPage == 200 ? 'selected' : '' ?>>200</option>
+          <select id="perPageSelect" class="border border-gray-300 px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:border-yellow-400 transition text-sm">
+              <option value="50" <?= $perPage == 50 ? 'selected' : '' ?>>50</option>
+              <option value="100" <?= $perPage == 100 ? 'selected' : '' ?>>100</option>
+              <option value="200" <?= $perPage == 200 ? 'selected' : '' ?>>200</option>
           </select>
           <span class="text-gray-600 font-medium">entries</span>
       </div>
+
+      <div class="flex items-center gap-2">
+          <input type="text" id="searchInput" placeholder="Search residents..."
+                class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 text-sm w-full md:w-64 transition">
+      </div>
+  </div>
 
       <table class="min-w-full divide-y divide-gray-200">
           <thead class="bg-gray-100">
             <tr>
               <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Resident</th>
               <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID Number</th>
-              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Request Type</th> <!-- NEW -->
+              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Request Type</th> 
               <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
               <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Requested On</th>
               <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Payment Proof</th>
@@ -233,7 +249,7 @@ $systemLogoPath = '../' . $systemLogo;
                     
                     <td class="px-6 py-4"><?= htmlspecialchars($req['first_name'].' '.$req['last_name']) ?></td>
                     <td class="px-6 py-4"><?= htmlspecialchars($req['id_number'] ?: 'N/A') ?></td>
-                    <td class="px-6 py-4"><?= htmlspecialchars($req['request_type']) ?></td> <!-- NEW -->
+                    <td class="px-6 py-4"><?= htmlspecialchars($req['request_type']) ?></td> 
                     <td class="px-6 py-4"><?= htmlspecialchars($req['status']) ?></td>
                     <td class="px-6 py-4"><?= date('M d, Y h:i A', strtotime($req['date_requested'])) ?></td>
                     
@@ -304,7 +320,7 @@ $systemLogoPath = '../' . $systemLogo;
             <tr>
                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Resident Name</th>
                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID Number</th>
-                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Request Type</th> <!-- NEW -->
+                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Request Type</th> 
                 <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">PDF</th>
             </tr>
         </thead>
@@ -315,7 +331,7 @@ $systemLogoPath = '../' . $systemLogo;
                     <tr class="hover:bg-gray-50 transition">
                         <td class="px-6 py-4"><?= htmlspecialchars($p['first_name'].' '.$p['last_name']) ?></td>
                         <td class="px-6 py-4"><?= htmlspecialchars($p['id_number']) ?></td>
-                        <td class="px-6 py-4"><?= htmlspecialchars($p['request_type']) ?></td> <!-- NEW -->
+                        <td class="px-6 py-4"><?= htmlspecialchars($p['request_type']) ?></td> 
                         <td class="px-6 py-4">
                             <?php if (!empty($p['generated_pdf'])): ?>
                                 <a href="<?= '../'.$p['generated_pdf'] ?>" target="_blank" 
@@ -418,7 +434,40 @@ function printID(pdfUrl, requestId) {
     };
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+    const searchInput = document.getElementById('searchInput');
+    const requestsTable = document.getElementById('requestsTable');
+    const rows = requestsTable.getElementsByTagName('tr');
 
+    searchInput.addEventListener('input', () => {
+        const filter = searchInput.value.toLowerCase();
+        let visibleCount = 0;
+
+        Array.from(rows).forEach(row => {
+            const resident = row.dataset.resident?.toLowerCase() || '';
+            const address = row.dataset.address?.toLowerCase() || '';
+            const birthdate = row.dataset.birthdate?.toLowerCase() || '';
+
+            if (resident.includes(filter) || address.includes(filter) || birthdate.includes(filter)) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Show "No requests found" row if nothing matches
+        let noFoundRow = document.getElementById('noFoundRow');
+        if (!noFoundRow) {
+            noFoundRow = document.createElement('tr');
+            noFoundRow.id = 'noFoundRow';
+            noFoundRow.innerHTML = `<td colspan="7" class="text-center py-4 text-gray-500">No requests found.</td>`;
+            requestsTable.appendChild(noFoundRow);
+        }
+
+        noFoundRow.style.display = visibleCount === 0 ? '' : 'none';
+    });
+});
 function openModal(src) {
     document.getElementById('paymentModalImg').src = src;
     document.getElementById('paymentModal').classList.remove('hidden');

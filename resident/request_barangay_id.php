@@ -243,7 +243,6 @@ if (empty($error)) {
         );
     }
 
-    // ---------------- EXECUTE ----------------
     if ($stmt->execute()) {
 
         $updateResident = $conn->prepare("UPDATE residents 
@@ -263,12 +262,34 @@ if (empty($error)) {
         $updateResident->close();
         $stmt->close();
 
+        $full_name = $first_name . ' ' . $middle_name . ' ' . $last_name;
+        $msg = $edit_id 
+            ? "Barangay ID request updated by $full_name." 
+            : "New Barangay ID request submitted by $full_name.";
+
+        // SEND NOTIFICATION TO ADMIN
+        $n1 = $conn->prepare("INSERT INTO notifications 
+            (resident_id, message, from_role, to_role, date_created, is_read)
+            VALUES (?, ?, 'resident', 'admin', NOW(), 0)");
+        $n1->bind_param("is", $resident_id, $msg);
+        $n1->execute();
+        $n1->close();
+
+        // SEND NOTIFICATION TO STAFF
+        $n2 = $conn->prepare("INSERT INTO notifications 
+            (resident_id, message, from_role, to_role, date_created, is_read)
+            VALUES (?, ?, 'resident', 'staff', NOW(), 0)");
+        $n2->bind_param("is", $resident_id, $msg);
+        $n2->execute();
+        $n2->close();
+
         header("Location: certificate/all_requests.php?success=1");
         exit();
 
     } else {
         $error = "Something went wrong while saving your request.";
     }
+
 }
 
 }

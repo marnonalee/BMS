@@ -124,7 +124,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !$disableForm) {
         if ($editRequest) {
             $stmt = $conn->prepare("UPDATE certificate_requests SET template_id = ?, purpose = ?, supporting_doc = ?, earnings_per_month = ?, child_fullname = ?, child_birthdate = ?, child_birthplace = ?, status = 'Pending', date_requested = NOW() WHERE id = ? AND resident_id = ?");
             $stmt->bind_param("issssssii", $template_id, $purpose, $valid_id, $earnings_per_month, $child_fullname, $child_birthdate, $child_birthplace, $editId, $resident_id);
-            if ($stmt->execute()) $success = "Your certificate request has been updated successfully!";
+            if ($stmt->execute()) {
+                $success = "Your certificate request has been updated successfully!";
+
+                $n = $conn->prepare("INSERT INTO notifications (resident_id, message, from_role, to_role, date_created, is_read) VALUES (?, ?, 'resident', 'admin, staff', NOW(), 0)");
+                $msg = 'A certificate request has been updated.';
+                $n->bind_param("is", $resident_id, $msg);
+                $n->execute();
+                $n->close();
+            }
+
             else $error = "Something went wrong while updating your request.";
             $stmt->close();
             $u = $conn->prepare("UPDATE residents SET profession_occupation = ? WHERE resident_id = ?");
@@ -134,10 +143,16 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !$disableForm) {
         } else {
             $stmt = $conn->prepare("INSERT INTO certificate_requests (resident_id, template_id, purpose, supporting_doc, earnings_per_month, child_fullname, child_birthdate, child_birthplace, status, date_requested) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())");
             $stmt->bind_param("iissssss", $resident_id, $template_id, $purpose, $valid_id, $earnings_per_month, $child_fullname, $child_birthdate, $child_birthplace);
-            if ($stmt->execute()) {
-                $success = "Your certificate request has been submitted successfully!";
-                $disableForm = true;
-            } else $error = "Something went wrong while saving your request.";
+           if ($stmt->execute()) {
+            $success = "Your certificate request has been submitted successfully!";
+            $disableForm = true;
+
+            $n = $conn->prepare("INSERT INTO notifications (resident_id, message, from_role, to_role, date_created, is_read) VALUES (?, ?, 'resident', 'admin,staff', NOW(), 0)");
+            $msg = 'New certificate request from a resident.';
+            $n->bind_param("is", $resident_id, $msg);
+            $n->execute();
+            $n->close();
+        }else $error = "Something went wrong while saving your request.";
             $stmt->close();
             $u = $conn->prepare("UPDATE residents SET profession_occupation = ? WHERE resident_id = ?");
             $u->bind_param("si", $profession_occupation, $resident_id);

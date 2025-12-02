@@ -263,7 +263,6 @@ header .dropdown a:hover { background-color: #f3f4f6; }
   </div>
 </div>
 <script>
-// Notifications & Profile dropdown
 const modal = document.getElementById('certificateModal');
 const btn = document.getElementById('requestCertificateBtn');
 const closeBtn = document.getElementById('closeModal');
@@ -306,9 +305,6 @@ document.addEventListener('click', e => {
     }
 });
 
-// ===============================
-// CONFIRM REQUEST POPUP (FIXED)
-// ===============================
 
 let selectedUrl = "";
 const confirmModal = document.getElementById("confirmModal");
@@ -316,7 +312,6 @@ const confirmTitle = document.getElementById("confirmTitle");
 const cancelConfirm = document.getElementById("cancelConfirm");
 const confirmProceed = document.getElementById("confirmProceed");
 
-// Open confirm popup
 document.querySelectorAll(".requestAction").forEach(btn => {
     btn.addEventListener("click", () => {
         selectedUrl = btn.dataset.url;
@@ -326,20 +321,17 @@ document.querySelectorAll(".requestAction").forEach(btn => {
     });
 });
 
-// Cancel button
 cancelConfirm.addEventListener("click", () => {
     confirmModal.classList.add("hidden");
     confirmModal.classList.remove("flex");
 });
 
-// Proceed button → redirect to request page
 confirmProceed.addEventListener("click", () => {
     if (selectedUrl !== "") {
         window.location.href = selectedUrl;
     }
 });
 
-// Hide modal when clicking outside
 window.addEventListener("click", (e) => {
     if (e.target === confirmModal) {
         confirmModal.classList.add("hidden");

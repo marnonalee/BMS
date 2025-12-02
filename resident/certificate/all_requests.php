@@ -97,22 +97,22 @@ $themeColor = $settings['theme_color'] ?? '#3b82f6';
 <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
-    <style>
-:root { --theme-color: <?= htmlspecialchars($themeColor) ?>; }
-.bg-theme { background-color: var(--theme-color); }
-.text-theme { color: var(--theme-color); }
-.bg-theme-gradient { background: linear-gradient(to right, var(--theme-color), #6366f1); }
+<style>
+    :root { --theme-color: <?= htmlspecialchars($themeColor) ?>; }
+    .bg-theme { background-color: var(--theme-color); }
+    .text-theme { color: var(--theme-color); }
+    .bg-theme-gradient { background: linear-gradient(to right, var(--theme-color), #6366f1); }
 
-header { font-family: 'Inter', sans-serif; }
-header img { transition: transform 0.2s; }
-header img:hover { transform: scale(1.05); }
-button:hover { cursor: pointer; }
+    header { font-family: 'Inter', sans-serif; }
+    header img { transition: transform 0.2s; }
+    header img:hover { transform: scale(1.05); }
+    button:hover { cursor: pointer; }
 
-header .container { max-width: 1280px; }
-header .dropdown { transition: all 0.3s ease-in-out; }
-header .dropdown a:hover { background-color: #f3f4f6; }
+    header .container { max-width: 1280px; }
+    header .dropdown { transition: all 0.3s ease-in-out; }
+    header .dropdown a:hover { background-color: #f3f4f6; }
 
-#notifDropdown li:hover { background-color: #eef2ff; }
+    #notifDropdown li:hover { background-color: #eef2ff; }
 </style>
 <header class="bg-theme-gradient text-white shadow-md sticky top-0 z-50">
   <div class="container mx-auto flex flex-col md:flex-row justify-between items-center p-4 space-y-2 md:space-y-0">

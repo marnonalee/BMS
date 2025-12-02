@@ -134,10 +134,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $message = "Matagumpay na na-file ang iyong blotter. Pakitingnan ang PDF na naka-attach sa email.";
-            $stmtNotify = $conn->prepare("INSERT INTO notifications (resident_id, message, from_role, title, type, priority, action_type, sent_email) VALUES (?, ?, 'system', ?, 'blotter', 'normal', 'created', ?)");
+            $fromRole = $_SESSION['role']; 
+
+            $stmtNotify = $conn->prepare("
+                INSERT INTO notifications 
+                (resident_id, message, from_role, title, type, priority, action_type, sent_email) 
+                VALUES (?, ?, ?, ?, 'blotter', 'normal', 'created', ?)
+            ");
             $title = "Blotter Filed";
-            $stmtNotify->bind_param("issi", $blotter['complainant_id'], $message, $title, $sentEmail);
+            $stmtNotify->bind_param("isssi", $blotter['complainant_id'], $message, $fromRole, $title, $sentEmail);
             $stmtNotify->execute();
+
 
             $stmtSuspect = $conn->prepare("SELECT resident_id, email_address, CONCAT(first_name,' ',last_name) AS fullname FROM residents WHERE CONCAT(first_name,' ',last_name)=? LIMIT 1");
             $stmtSuspect->bind_param("s", $suspect_name);

@@ -145,7 +145,7 @@ $systemLogoPath = '../' . $systemLogo;
           <span class="material-icons mr-3">admin_panel_settings</span><span class="sidebar-text">System User</span>
         </a>
         <a href="../user_manage/log_activity.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
-          <span class="material-icons mr-3">history</span><span class="sidebar-text">Log Activity</span>
+          <span class="material-icons mr-3">history</span><span class="sidebar-text">Activity Logs</span>
         </a>
         <a href="../user_manage/settings.php" class="flex items-center px-4 py-3 rounded-md bg-white/10 backdrop-blur-sm transition-all">
           <span class="material-icons mr-3">settings</span><span class="sidebar-text">Settings</span>

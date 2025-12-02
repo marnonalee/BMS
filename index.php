@@ -33,16 +33,19 @@ while ($img = $imgQuery->fetch_assoc()) {
 $announcement = $conn->query("
     SELECT a.id, a.title, a.content, a.created_at, u.username
     FROM announcements a
-    JOIN users u ON a.user_id=u.id
+    JOIN users u ON a.user_id = u.id
     ORDER BY a.created_at DESC
     LIMIT 1
 ")->fetch_assoc();
 
 $announcementImages = [];
 if ($announcement) {
-    $imgQuery = $conn->query("SELECT * FROM announcement_images WHERE announcement_id=".$announcement['id']);
+    $imgQuery = $conn->query("SELECT image_path FROM announcement_images WHERE announcement_id = " . $announcement['id']);
     while ($img = $imgQuery->fetch_assoc()) {
-        $announcementImages[] = 'user/'.$img['image_path'];
+        $path = 'user/' . $img['image_path'];
+        if (file_exists(__DIR__ . '/' . $path)) {
+            $announcementImages[] = $path;
+        }
     }
 }
 
@@ -224,14 +227,19 @@ if($result->num_rows>0){
         <button id="closeModal" class="absolute top-3 right-3 text-gray-500 hover:text-black text-2xl">&times;</button>
         <h2 class="text-[22px] font-bold text-blue-900 mb-4"><?= htmlspecialchars($announcement['title']) ?></h2>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div class="text-gray-700 text-[14px]"><?= nl2br(strip_tags($announcement['content'])) ?></div>
-            <?php if($announcementImages): ?>
+          <div class="text-gray-700 text-[14px]"><?= nl2br(strip_tags($announcement['content'])) ?></div>
+
             <div class="flex flex-col gap-2">
-                <?php foreach($announcementImages as $i): ?>
-                    <img src="<?= $i ?>" class="w-full h-72 object-cover rounded-lg shadow-sm">
-                <?php endforeach; ?>
+                <?php if(!empty($announcementImages)): ?>
+                    <?php foreach($announcementImages as $img): ?>
+                        <img src="<?= $img ?>" class="w-full h-72 object-cover rounded-lg shadow-sm">
+                    <?php endforeach; ?>
+                <?php else: ?>
+                    <div class="w-full h-72 bg-gray-200 flex items-center justify-center rounded-lg">
+                        <span class="text-gray-500">No images available</span>
+                    </div>
+                <?php endif; ?>
             </div>
-            <?php endif; ?>
         </div>
         <div class="text-right mt-4">
             <button id="closeModal2" class="bg-blue-800 text-white px-4 py-2 rounded text-sm">Close</button>
@@ -239,6 +247,7 @@ if($result->num_rows>0){
     </div>
 </div>
 <?php endif; ?>
+
 
 <footer class="text-white text-center py-6" style="background-color:<?= $themeColor ?>">
     © <?= date('Y') ?> <?= htmlspecialchars($settings['barangay_name']) ?>. All Rights Reserved.

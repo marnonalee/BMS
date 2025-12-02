@@ -437,7 +437,11 @@ header .dropdown a:hover { background-color: #f3f4f6; }
                                     '<?= addslashes($req['res_voter_status'] ?: $req['voter_status']) ?>',
                                     <?= $req['member_resident_id'] ?: '0' ?>
                                 )" class="px-3 py-1 bg-yellow-400 text-white rounded hover:bg-yellow-500 text-sm">Edit</button>
-                                <a <?= $req['status']==='Pending' ? 'href="?delete='.$req['request_id'].'" onclick="return confirm(\'Are you sure?\')" class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm text-center"' : 'class="px-3 py-1 bg-gray-400 text-white rounded text-sm cursor-not-allowed"' ?>>Remove</a>
+                               <a <?= (strtolower(trim($req['status'])) === 'pending') 
+                                    ? 'href="?delete='.$req['request_id'].'" onclick="return confirm(\'Are you sure?\')" class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 text-sm text-center"' 
+                                    : 'class="px-3 py-1 bg-gray-400 text-white rounded text-sm cursor-not-allowed"' ?>>
+                                Remove</a>
+
                             </div>
                         </li>
                     <?php endforeach; ?>

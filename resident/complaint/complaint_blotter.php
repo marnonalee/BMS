@@ -7,7 +7,6 @@ if (!isset($_SESSION["user_id"]) || $_SESSION["role"] !== "resident") {
 
 include '../../db.php';
 
-
 $success = "";
 $error = "";
 $user_id = (int)$_SESSION["user_id"];
@@ -40,9 +39,6 @@ if ($resident_id > 0) {
     $conn->query("UPDATE notifications SET is_read = 1 WHERE resident_id = $resident_id");
 }
 
-/* ================================
-   CHECK IF RESIDENT IS APPROVED
-==================================*/
 $approvalQuery = $conn->prepare("SELECT is_approved FROM users WHERE id = ?");
 $approvalQuery->bind_param("i", $user_id);
 $approvalQuery->execute();
@@ -61,9 +57,6 @@ if ($is_approved != 1) {
     $is_blocked = true;
 }
 
-/* ================================
-   FETCH RESIDENT INFORMATION
-==================================*/
 $residentQuery = $conn->prepare("
     SELECT resident_id,
            CONCAT(first_name, ' ', COALESCE(middle_name,''), ' ', last_name) AS full_name,
@@ -85,15 +78,17 @@ if ($residentResult->num_rows > 0) {
 } else {
     die("No matching resident record found for this user.");
 }
-
 $residentQuery->close();
 
-/* ================================
-   HANDLE FORM SUBMISSION
-==================================*/
+function sendNotification($conn, $resident_id, $message, $title = "Notification", $from_role = "system", $type = "general", $priority = "normal", $action_type = "created") {
+    $stmt = $conn->prepare("INSERT INTO notifications (resident_id, message, from_role, title, type, priority, action_type, is_read, sent_email, date_created) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, NOW())");
+    $stmt->bind_param("issssss", $resident_id, $message, $from_role, $title, $type, $priority, $action_type);
+    $stmt->execute();
+    $stmt->close();
+}
+
 if ($_SERVER["REQUEST_METHOD"] === "POST" && !$is_blocked) {
 
-    // Sanitize inputs
     $victim_name = trim($_POST["victim_name"]);
     $suspect_name = trim($_POST["suspect_name"]);
     $incident_location = trim($_POST["incident_location"]);
@@ -104,14 +99,10 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !$is_blocked) {
     $complainant_relation = trim($_POST["complainant_relation"]);
     $suspect_address = trim($_POST["suspect_address"]);
 
-    // Required fields
     if (empty($victim_name) || empty($incident_nature) || empty($incident_datetime)) {
         $error = "Please fill in all required fields.";
     } else {
 
-        /* ================================
-           INSERT COMPLAINT INTO DATABASE
-        =================================*/
         $stmt = $conn->prepare("
             INSERT INTO blotter_records 
                 (complainant_id, complainant_name, complainant_contact, complainant_address,
@@ -135,26 +126,18 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !$is_blocked) {
         if ($stmt->execute()) {
 
             $blotter_id = $stmt->insert_id;
-
             $success = "Your complaint has been submitted successfully!";
 
-            /* ================================
-               SEND NOTIFICATION TO STAFF
-            =================================*/
-            $staffQuery = $conn->query("SELECT id FROM users WHERE role = 'staff'");
+            $staffQuery = $conn->query("SELECT id FROM users WHERE role IN ('staff','admin')");
 
             while ($staff = $staffQuery->fetch_assoc()) {
-                $staff_id = $staff['id'];
-                $message = "New blotter submitted by {$resident_name}";
-
-                $notifStmt = $conn->prepare("
-                    INSERT INTO staff_notifications (staff_id, blotter_id, message)
-                    VALUES (?, ?, ?)
-                ");
-
-                $notifStmt->bind_param("iis", $staff_id, $blotter_id, $message);
-                $notifStmt->execute();
-                $notifStmt->close();
+                $staff_user_id = $staff['id'];
+                $message = "New blotter submitted by $resident_name";
+                $title = "New Blotter Report";
+                $type = "blotter";
+                $priority = "high";
+                $action_type = "created";
+                sendNotification($conn, $staff_user_id, $message, $title, "resident", $type, $priority, $action_type);
             }
 
         } else {
@@ -166,6 +149,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && !$is_blocked) {
 }
 
 ?>
+
 
 
 <!DOCTYPE html>

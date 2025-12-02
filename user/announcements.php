@@ -4,7 +4,6 @@ if (!isset($_SESSION["user_id"])) {
     header("Location: ../../login.php");
     exit();
 }
-
 include '../db.php';
 $user_id = $_SESSION["user_id"];
 $userQuery = $conn->query("SELECT * FROM users WHERE id = '$user_id'");
@@ -22,12 +21,9 @@ function uploadFiles($files, $announcement_id, $conn){
             if($name && $tmp_name){
                 $fileName = time().'_'.$name;
                 $filePath = 'uploads/'.$fileName;
-
                 if(!move_uploaded_file($tmp_name, $filePath)){
-                    error_log("Failed to move uploaded file '$name'");
                     continue;
                 }
-
                 $stmt = $conn->prepare("INSERT INTO announcement_images (announcement_id, image_path) VALUES (?, ?)");
                 $stmt->bind_param("is", $announcement_id, $filePath);
                 $stmt->execute();
@@ -36,7 +32,16 @@ function uploadFiles($files, $announcement_id, $conn){
     }
 }
 
-// Handle POST (Create or Edit)
+function sendAnnouncementNotification($conn, $title, $content, $from_role = "admin") {
+    $res = $conn->query("SELECT resident_id FROM residents");
+    while ($row = $res->fetch_assoc()) {
+        $resident_id = $row['resident_id'];
+        $stmt = $conn->prepare("INSERT INTO notifications (resident_id, message, from_role, title, type, priority, action_type) VALUES (?, ?, ?, ?, 'announcement', 'normal', 'created')");
+        $stmt->bind_param("isss", $resident_id, $content, $from_role, $title);
+        $stmt->execute();
+    }
+}
+
 if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action'])){
     $title = $_POST["title"] ?? '';
     $content = $_POST["content"] ?? '';
@@ -51,6 +56,8 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action'])){
             if(isset($_FILES['images']) && !empty($_FILES['images']['name'][0])){
                 uploadFiles($_FILES['images'], $announcement_id, $conn);
             }
+
+            sendAnnouncementNotification($conn, $title, $content, $role);
 
             $showModal = true;
             $modalMessage = "Announcement posted!";
@@ -77,7 +84,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action'])){
             if(isset($_FILES['images']) && !empty($_FILES['images']['name'][0])){
                 uploadFiles($_FILES['images'], $edit_id, $conn);
             }
-
             $showModal = true;
             $modalMessage = "Announcement updated!";
             $modalType = "success";
@@ -89,7 +95,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST" && isset($_POST['action'])){
     }
 }
 
-// Delete Announcement
 if(isset($_GET['delete_id'])){
     $delete_id = $_GET['delete_id'];
     $stmt = $conn->prepare("DELETE FROM announcements WHERE id=?");
@@ -209,7 +214,7 @@ $barangayName = $settings['barangay_name'] ?? 'Barangay';
           <span class="material-icons mr-3">admin_panel_settings</span><span class="sidebar-text">System User</span>
         </a>
         <a href="user_manage/log_activity.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
-          <span class="material-icons mr-3">history</span><span class="sidebar-text">Log Activity</span>
+          <span class="material-icons mr-3">history</span><span class="sidebar-text">Activity Logs</span>
         </a>
         <a href="user_manage/settings.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
           <span class="material-icons mr-3">settings</span><span class="sidebar-text">Settings</span>

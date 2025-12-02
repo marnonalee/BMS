@@ -6,6 +6,22 @@ if (!isset($_SESSION["user_id"])) {
 }
 include '../db.php';
 
+$user_id = $_SESSION["user_id"]; 
+
+$user_id = $_SESSION["user_id"];
+$userQuery = $conn->prepare("SELECT first_name, last_name FROM residents WHERE user_id = ?");
+$userQuery->bind_param("i", $user_id);
+$userQuery->execute();
+$userResult = $userQuery->get_result()->fetch_assoc();
+$user_name = $userResult ? $userResult['first_name'] . ' ' . $userResult['last_name'] : 'Unknown User';
+
+$action = "Print Household Masterlist";
+$description = "$user_name printed the Household Masterlist";
+$logStmt = $conn->prepare("INSERT INTO log_activity (user_id, action, description) VALUES (?,?,?)");
+$logStmt->bind_param("iss", $user_id, $action, $description);
+$logStmt->execute();
+
+
 $date_covered = date("F Y");
 $date_printed = date("F j, Y");
 
@@ -13,7 +29,6 @@ $settingsQuery = $conn->query("SELECT barangay_name FROM system_settings LIMIT 1
 $settings = $settingsQuery->fetch_assoc();
 $barangay = $settings['barangay_name'] ?? '';
 
-// Get all households with head info
 $householdsQuery = $conn->query("
     SELECT h.household_id, h.family_id, h.household_address, h.street, h.head_resident_id,
            r.first_name, r.middle_name, r.last_name, r.resident_address
@@ -22,6 +37,7 @@ $householdsQuery = $conn->query("
     ORDER BY h.household_id ASC
 ");
 ?>
+
 <!DOCTYPE html>
 <html>
 <head>

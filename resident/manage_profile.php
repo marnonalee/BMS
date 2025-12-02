@@ -381,7 +381,9 @@ header .dropdown a:hover { background-color: #f3f4f6; }
 <div id="supportDocModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
   <div class="bg-white rounded-xl p-6 w-96 relative shadow-2xl">
     <h3 class="text-xl font-bold mb-4">Upload Supporting Document</h3>
-    <p class="text-gray-600 text-sm mb-4">Please upload a supporting document (JPG, PNG, or PDF) to proceed with your profile update request.</p>
+    <p id="supportDocText" class="text-gray-600 text-sm mb-4">
+        Please upload a supporting document to proceed with your profile update request.
+        </p>
     <form id="supportDocForm" enctype="multipart/form-data">
       <input type="file" id="supporting_doc" name="supporting_doc" accept=".jpg,.jpeg,.png,.pdf" class="mb-4 w-full">
       <p id="fileError" class="text-red-500 text-sm mb-2 hidden">Please upload a valid file.</p>
@@ -463,10 +465,27 @@ const fileInput = document.getElementById('supporting_doc');
 const fileError = document.getElementById('fileError');
 
 saveBtn.addEventListener('click', () => {
-    supportModal.classList.remove('hidden');
-    supportModal.classList.add('flex');
-});
+    const isPwd = form.querySelector('input[name="is_pwd"]').checked;
+    const isSenior = form.querySelector('input[name="is_senior"]').checked;
+    const is4Ps = form.querySelector('input[name="is_4ps"]').checked;
+    const isSolo = form.querySelector('input[name="is_solo_parent"]').checked;
 
+    let requiredDoc = [];
+    if (isPwd) requiredDoc.push("PWD ID");
+    if (isSenior) requiredDoc.push("Senior ID");
+    if (is4Ps) requiredDoc.push("4Ps ID");
+    if (isSolo) requiredDoc.push("Solo Parent ID");
+
+    const supportDocText = document.getElementById('supportDocText');
+    
+    if(requiredDoc.length > 0){
+        supportDocText.textContent = "Please upload: " + requiredDoc.join(", ");
+        supportModal.classList.remove('hidden');
+        supportModal.classList.add('flex');
+    } else {
+        form.submit();
+    }
+});
 cancelBtn.addEventListener('click', () => {
     supportModal.classList.remove('flex');
     supportModal.classList.add('hidden');

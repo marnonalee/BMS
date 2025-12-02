@@ -30,16 +30,22 @@ $requestsQuery = $conn->query("
     LIMIT $start, $perPage
 ");
 
-// Helper functions
 function logActivity($conn, $user_id, $action, $description = null) {
     $stmt = $conn->prepare("INSERT INTO log_activity (user_id, action, description, created_at) VALUES (?, ?, ?, NOW())");
     $stmt->bind_param("iss", $user_id, $action, $description);
     $stmt->execute();
     $stmt->close();
 }
+function sendNotification($conn, $resident_id, $message, $title = "Certificate Request", $from_role = null, $type = "certificate", $priority = "normal", $action_type = "updated") {
+    if ($from_role === null) {
+        $from_role = $_SESSION['role'] ?? 'system'; 
+    }
 
-function sendNotification($conn, $resident_id, $message, $title = "Certificate Request", $from_role = "system", $type = "certificate", $priority = "normal", $action_type = "updated") {
-    $stmt = $conn->prepare("INSERT INTO notifications (resident_id, message, from_role, title, type, priority, action_type, is_read, sent_email, date_created) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, NOW())");
+    $stmt = $conn->prepare("
+        INSERT INTO notifications 
+        (resident_id, message, from_role, title, type, priority, action_type, is_read, sent_email, date_created) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, NOW())
+    ");
     $stmt->bind_param("issssss", $resident_id, $message, $from_role, $title, $type, $priority, $action_type);
     $stmt->execute();
     $stmt->close();
@@ -55,7 +61,6 @@ if (isset($_POST['update_status'])) {
     $reviewed_by = $_SESSION['user_id'] ?? 0;
     $date_reviewed = date('Y-m-d H:i:s');
 
-    // Update request status
     $stmt = $conn->prepare("
         UPDATE certificate_requests 
         SET status = ?, remarks = ?, date_reviewed = ?, reviewed_by = ? 
@@ -65,12 +70,10 @@ if (isset($_POST['update_status'])) {
     $stmt->execute();
     $stmt->close();
 
-    // Log activity
     $action = $newStatus === 'Ready for Pickup' ? 'Approved Certificate Request' : 'Rejected Certificate Request';
     $description = "Request ID $requestId was $newStatus. Remarks: $remarks";
     logActivity($conn, $reviewed_by, $action, $description);
 
-    // Get resident info
     $reqData = $conn->query("SELECT resident_id, purpose FROM certificate_requests WHERE id = $requestId")->fetch_assoc();
     $residentId = $reqData['resident_id'];
     $purpose = $reqData['purpose'] ?? 'General';
@@ -79,11 +82,9 @@ if (isset($_POST['update_status'])) {
     $fullName = $residentData['first_name'] . ' ' . $residentData['last_name'];
     $issuedDate = date("F d, Y");
 
-    // Prepare PDF path (optional: pass null if you generate later)
     $pdfPath = null;
     $filename = $newStatus === 'Ready for Pickup' ? 'Certificate_Ready.pdf' : 'Certificate_Rejected.pdf';
 
-    // Send email via PHPMailer
     sendCertificateEmail(
         $residentData['email_address'],
         $fullName,
@@ -94,7 +95,6 @@ if (isset($_POST['update_status'])) {
         $residentId
     );
 
-    // Send notification in system
     if ($newStatus === 'Ready for Pickup') {
         $notificationMessage = "Ang iyong certificate request ay na-approve at handa na para sa pickup.";
         $notificationTitle = "Certificate Request Approved";
@@ -114,7 +114,6 @@ if (isset($_POST['update_status'])) {
     exit;
 }
 
-// System settings
 $settingsQuery = $conn->query("SELECT barangay_name, system_logo FROM system_settings LIMIT 1");
 $settings = $settingsQuery->fetch_assoc();
 $barangayName = $settings['barangay_name'] ?? 'Barangay Name';
@@ -224,7 +223,7 @@ $systemLogoPath = '../' . $systemLogo;
           <span class="material-icons mr-3">admin_panel_settings</span><span class="sidebar-text">System User</span>
         </a>
         <a href="../user_manage/log_activity.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
-          <span class="material-icons mr-3">history</span><span class="sidebar-text">Log Activity</span>
+          <span class="material-icons mr-3">history</span><span class="sidebar-text">Activity Logs</span>
         </a>
         <a href="../user_manage/settings.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
           <span class="material-icons mr-3">settings</span><span class="sidebar-text">Settings</span>
@@ -335,6 +334,7 @@ $systemLogoPath = '../' . $systemLogo;
 
         </table>
 
+        
         <div class="flex justify-center mt-6 space-x-2">
           <?php if($page>1): ?>
             <a href="?page=<?= $page-1 ?>&perPage=<?= $perPage ?>" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition">Prev</a>
@@ -380,28 +380,32 @@ $systemLogoPath = '../' . $systemLogo;
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="cert.js"></script>
 <script>
-
 document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('requestModal');
     const closeModalBtn = document.getElementById('closeModal');
-
     const modalDocPreview = document.getElementById('modalDocPreview');
     const noDocText = document.getElementById('noDocText');
 
-    // Close button
     closeModalBtn.addEventListener('click', () => {
         modal.classList.add('hidden');
     });
 
-    // Close when clicking outside modal content
     modal.addEventListener('click', (e) => {
         if (e.target === modal) modal.classList.add('hidden');
     });
 
-    // View doc click
     document.querySelectorAll('.view-doc').forEach(el => {
         el.addEventListener('click', () => {
             const docUrl = el.dataset.doc;
+            const row = el.closest('tr');
+            const residentName = row.dataset.resident;
+            const birthdate = row.dataset.birthdate;
+            const address = row.dataset.address;
+
+            document.getElementById('modalResident').textContent = residentName;
+            document.getElementById('modalBirthdate').textContent = birthdate;
+            document.getElementById('modalAddress').textContent = address;
+
             modalDocPreview.innerHTML = '';
 
             if(docUrl) {
@@ -430,12 +434,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 modalDocPreview.appendChild(noDocText);
             }
 
-            modal.classList.remove('hidden');
+            document.getElementById('requestModal').classList.remove('hidden');
         });
     });
-});
 
-document.addEventListener('DOMContentLoaded', () => {
     const overlay = document.getElementById('loadingOverlay');
     const statusForms = document.querySelectorAll('form input[name="update_status"]');
 
@@ -444,9 +446,35 @@ document.addEventListener('DOMContentLoaded', () => {
             overlay.classList.remove('hidden');
         });
     });
+
+    const searchInput = document.getElementById('searchInput');
+    const tableBody = document.getElementById('requestsTable');
+    const noResultsRow = document.createElement('tr');
+    noResultsRow.className = 'text-center text-gray-400';
+    noResultsRow.id = 'noResultsRow';
+    noResultsRow.innerHTML = '<td colspan="8">No certificate requests found.</td>';
+    noResultsRow.style.display = 'none';
+    tableBody.appendChild(noResultsRow);
+
+    searchInput.addEventListener('input', () => {
+        const query = searchInput.value.toLowerCase();
+        let hasVisible = false;
+
+        tableBody.querySelectorAll('tr').forEach(row => {
+            if(row.id === 'noResultsRow') return;
+            const text = row.textContent.toLowerCase();
+            if(text.includes(query)) {
+                row.style.display = '';
+                hasVisible = true;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        noResultsRow.style.display = hasVisible ? 'none' : '';
+    });
 });
-
-
 </script>
+
 </body>
 </html>

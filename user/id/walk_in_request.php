@@ -116,8 +116,6 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         if ($stmtID->execute()) {
             $requestId = $stmtID->insert_id;
             logActivity($conn, $user_id, 'Walk-in Request', "Submitted walk-in request for: $full_name");
-
-            // Redirect to generate ID immediately
             header("Location: generate_id.php?request_id=$requestId");
             exit;
         } else $error = "Failed to submit ID request: " . $stmtID->error;
@@ -230,7 +228,7 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
           <span class="material-icons mr-3">admin_panel_settings</span><span class="sidebar-text">System User</span>
         </a>
         <a href="../user_manage/log_activity.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
-          <span class="material-icons mr-3">history</span><span class="sidebar-text">Log Activity</span>
+          <span class="material-icons mr-3">history</span><span class="sidebar-text">Activity Logs</span>
         </a>
         <a href="../user_manage/settings.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
           <span class="material-icons mr-3">settings</span><span class="sidebar-text">Settings</span>

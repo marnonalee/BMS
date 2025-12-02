@@ -150,7 +150,7 @@ $systemLogoPath = '../' . $systemLogo;
           <span class="material-icons mr-3">admin_panel_settings</span><span class="sidebar-text">System User</span>
         </a>
         <a href="../user_manage/log_activity.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
-          <span class="material-icons mr-3">history</span><span class="sidebar-text">Log Activity</span>
+          <span class="material-icons mr-3">history</span><span class="sidebar-text">Activity Logs</span>
         </a>
         <a href="../user_manage/settings.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
           <span class="material-icons mr-3">settings</span><span class="sidebar-text">Settings</span>
@@ -308,27 +308,35 @@ $systemLogoPath = '../' . $systemLogo;
             </div>
         </div>
     </div>
-
-    <!-- Officials Grid -->
-    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-6 auto-rows-fr">
-        <?php if ($result->num_rows > 0): ?>
-            <?php while($o = $result->fetch_assoc()): ?>
-            <div class="bg-white shadow-md rounded-2xl overflow-hidden cursor-pointer hover:shadow-xl transition flex flex-col items-center" onclick='openModal(<?= json_encode($o) ?>)'>
-                <div class="w-full h-60 bg-gray-100 flex items-center justify-center overflow-hidden">
-                    <img src="../uploads/<?= $o['photo'] && trim($o['photo']) !== '' ? htmlspecialchars($o['photo']) : 'official.jpg' ?>" class="h-full w-auto object-cover">
-                </div>
-                <div class="p-3 text-center w-full">
-                    <h2 class="text-sm font-semibold truncate text-gray-800"><?= htmlspecialchars($o['first_name'].' '.$o['last_name']) ?></h2>
-                    <p class="text-xs text-gray-600 truncate"><strong>Position:</strong> <?= htmlspecialchars($o['position_name']) ?></p>
-                    <?php if(!empty($o['department'])): ?>
-                    <p class="text-xs text-gray-500 truncate"><strong>Department:</strong> <?= htmlspecialchars($o['department']) ?></p>
-                    <?php endif; ?>
-                    <p class="text-xs text-gray-500 mt-1"><?= date('M d, Y', strtotime($o['start_date'])) ?> – <?= date('M d, Y', strtotime($o['end_date'])) ?></p>
-                </div>
-            </div>
-            <?php endwhile; ?>
-        <?php endif; ?>
+    
+<?php if ($result->num_rows == 0): ?>
+<div class="bg-white/80 p-12 rounded-3xl shadow-sm flex flex-col items-center gap-6 max-w-md mx-auto mt-6 backdrop-blur-sm">
+    <span class="material-icons text-6xl text-emerald-400">groups</span>
+    <h3 class="text-gray-600 text-2xl font-semibold text-center">No Officials Yet</h3>
+    <p class="text-gray-400 text-center text-sm max-w-xs">
+        There are no barangay officials added yet. New officials will appear here once added.
+    </p>
+</div>
+<?php else: ?>
+<div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-6 auto-rows-fr">
+    <?php while($o = $result->fetch_assoc()): ?>
+    <div class="bg-white shadow-md rounded-2xl overflow-hidden cursor-pointer hover:shadow-xl transition flex flex-col items-center" onclick='openModal(<?= json_encode($o) ?>)'>
+        <div class="w-full h-60 bg-gray-100 flex items-center justify-center overflow-hidden">
+            <img src="../uploads/<?= $o['photo'] && trim($o['photo']) !== '' ? htmlspecialchars($o['photo']) : 'official.jpg' ?>" class="h-full w-auto object-cover">
+        </div>
+        <div class="p-3 text-center w-full">
+            <h2 class="text-sm font-semibold truncate text-gray-800"><?= htmlspecialchars($o['first_name'].' '.$o['last_name']) ?></h2>
+            <p class="text-xs text-gray-600 truncate"><strong>Position:</strong> <?= htmlspecialchars($o['position_name']) ?></p>
+            <?php if(!empty($o['department'])): ?>
+            <p class="text-xs text-gray-500 truncate"><strong>Department:</strong> <?= htmlspecialchars($o['department']) ?></p>
+            <?php endif; ?>
+            <p class="text-xs text-gray-500 mt-1"><?= date('M d, Y', strtotime($o['start_date'])) ?> – <?= date('M d, Y', strtotime($o['end_date'])) ?></p>
+        </div>
     </div>
+    <?php endwhile; ?>
+</div>
+<?php endif; ?>
+
 
 </main>
 

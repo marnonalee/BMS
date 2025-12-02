@@ -40,12 +40,20 @@ function logActivity($conn, $user_id, $action, $description = null) {
     $stmt->close();
 }
 
-function sendNotification($conn, $resident_id, $message, $title = "Profile Update Request", $from_role = "system", $type = "general", $priority = "normal", $action_type = "updated") {
-    $stmt = $conn->prepare("INSERT INTO notifications (resident_id, message, from_role, title, type, priority, action_type, is_read, sent_email, date_created) VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, NOW())");
+function sendNotification($conn, $resident_id, $message, $title = "Profile Update Request", $from_role = null, $type = "general", $priority = "normal", $action_type = "updated") {
+    if ($from_role === null) {
+        $from_role = $_SESSION['role'] ?? 'system';
+    }
+    $stmt = $conn->prepare("
+        INSERT INTO notifications 
+        (resident_id, message, from_role, title, type, priority, action_type, is_read, sent_email, date_created) 
+        VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, NOW())
+    ");
     $stmt->bind_param("issssss", $resident_id, $message, $from_role, $title, $type, $priority, $action_type);
     $stmt->execute();
     $stmt->close();
 }
+
 
 if (isset($_POST['approve_request'])) {
     $request_id = $_POST['request_id'];
@@ -78,7 +86,6 @@ if (isset($_POST['approve_request'])) {
             $req['household_id'] = $household_id;
         }
 
-        // Update resident profile (existing logic)...
         $residentQuery = $conn->prepare("SELECT * FROM residents WHERE resident_id = ?");
         $residentQuery->bind_param("i", $resident_id);
         $residentQuery->execute();
@@ -260,18 +267,25 @@ $requestsQuery = $conn->query("
     </nav>
 </aside>
 
-<div class="flex-1 flex flex-col">
-
- <header class="flex items-center justify-between bg-white shadow-md px-6 py-4 rounded-b-2xl flex-shrink-0 mb-6">
-    <h2 class="text-2xl font-bold text-gray-700">Profile Update Request</h2>
+<div class="flex-1 flex flex-col overflow-hidden bg-gray-50">
+<header class="flex items-center justify-between bg-white shadow-md px-6 py-4 rounded-b-2xl flex-shrink-0 mb-6">
+    <h2 class="text-2xl font-bold text-gray-700"> Profile Update Requests</h2>
 </header>
+
 <main class="flex-1 overflow-y-auto p-6 bg-gray-50">
     <div class="max-w-7xl mx-auto space-y-8">
 
         <!-- Pending Requests -->
         <?php if($requestsQuery->num_rows > 0): ?>
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Pending Profile Update Requests</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Header + Search -->
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
+                <h2 class="text-2xl font-semibold text-gray-800">Pending Profile Update Requests</h2>
+                <input type="text" id="searchPending" placeholder="Search residents..."
+                       class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 text-sm transition w-full md:w-64">
+            </div>
+
+            <!-- Cards Grid (scrollable if too many cards) -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-[70vh] overflow-y-auto pr-2" id="pendingGrid">
                 <?php while($req = $requestsQuery->fetch_assoc()): ?>
                     <?php
                     $residentQuery = $conn->prepare("SELECT * FROM residents WHERE resident_id = ?");
@@ -305,7 +319,7 @@ $requestsQuery = $conn->query("
                         }
                     }
                     ?>
-                    <div class="bg-white p-6 rounded-2xl shadow-md hover:shadow-lg transition flex flex-col justify-between">
+                    <div class="pending-card bg-white/70 backdrop-blur-md border border-gray-200 p-6 rounded-2xl shadow hover:shadow-lg transition flex flex-col justify-between min-h-[220px]">
                         <div>
                             <h3 class="text-lg font-semibold text-gray-800"><?= htmlspecialchars($req['first_name'].' '.$req['last_name']) ?></h3>
                             <p class="text-gray-500 mt-1"><?= htmlspecialchars($req['resident_address']) ?></p>
@@ -361,13 +375,22 @@ $requestsQuery = $conn->query("
                 <?php endwhile; ?>
             </div>
         <?php else: ?>
-            <p class="text-gray-500 text-center py-12 text-lg">No pending profile update requests.</p>
-        <?php endif; ?>
+            <div class="bg-white/80 p-12 rounded-3xl shadow-sm flex flex-col items-center gap-6 max-w-md mx-auto mt-12 backdrop-blur-sm">
+                <h3 class="text-gray-600 text-2xl font-semibold text-center">No Pending Profile Update Requests</h3>
+                <p class="text-gray-400 text-center text-sm max-w-xs">
+                    All residents’ profiles are up-to-date. New requests will appear here once submitted.
+                </p>
+            </div>
 
-        <!-- Approved Requests Table -->
+        <?php endif; ?>
         <div class="bg-white p-6 rounded-2xl shadow-lg overflow-x-auto">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Approved Profile Update Requests</h2>
-            <table class="min-w-full divide-y divide-gray-200">
+            <div class="flex flex-col md:flex-row md:items-center md:justify-between mb-4 gap-4">
+                <h2 class="text-2xl font-semibold text-gray-800">Approved Profile Update Requests</h2>
+                <input type="text" id="searchApproved" placeholder="Search residents..."
+                       class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 text-sm transition w-full md:w-64">
+            </div>
+
+            <table class="min-w-full divide-y divide-gray-200" id="approvedTable">
                 <thead class="bg-gray-100">
                     <tr>
                         <th class="px-4 py-3 text-left text-gray-700 font-medium">Resident Name</th>
@@ -380,7 +403,7 @@ $requestsQuery = $conn->query("
                 <tbody class="divide-y divide-gray-200">
                     <?php if($approvedRequestsQuery->num_rows > 0): ?>
                         <?php while($req = $approvedRequestsQuery->fetch_assoc()): ?>
-                            <tr>
+                            <tr class="approved-row">
                                 <td class="px-4 py-3"><?= htmlspecialchars($req['first_name'].' '.$req['last_name']) ?></td>
                                 <td class="px-4 py-3"><?= htmlspecialchars($req['resident_address']) ?></td>
                                 <td class="px-4 py-3">
@@ -433,9 +456,9 @@ $requestsQuery = $conn->query("
         </div>
 
     </div>
+
+  
 </main>
-
-
 
 </div>
 </div>
@@ -450,6 +473,30 @@ $requestsQuery = $conn->query("
 </div>
 
 <script>
+   function openModal(id){
+    document.getElementById(id).classList.remove('hidden');
+    document.getElementById(id).classList.add('flex');
+}
+function closeModal(id){
+    document.getElementById(id).classList.remove('flex');
+    document.getElementById(id).classList.add('hidden');
+}
+
+document.getElementById('searchPending').addEventListener('input', function() {
+    const filter = this.value.toLowerCase();
+    document.querySelectorAll('.pending-card').forEach(card => {
+        const name = card.querySelector('h3').textContent.toLowerCase();
+        card.style.display = name.includes(filter) ? 'flex' : 'none';
+    });
+});
+
+document.getElementById('searchApproved').addEventListener('input', function() {
+    const filter = this.value.toLowerCase();
+    document.querySelectorAll('#approvedTable tbody tr.approved-row').forEach(row => {
+        const name = row.cells[0].textContent.toLowerCase();
+        row.style.display = name.includes(filter) ? '' : 'none';
+    });
+});
 const toggleSidebar = document.getElementById('toggleSidebar');
 const sidebar = document.getElementById('sidebar');
 toggleSidebar.addEventListener('click', () => {

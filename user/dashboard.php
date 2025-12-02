@@ -47,17 +47,26 @@ $approvedCertificates = $stats['approved_certificates'];
 $readyCertificates = $stats['ready_certificates'];
 $cancelledCertificates = $stats['cancelled_certificates'];
 $blotterCount = $stats['blotter_count'];
-
 $growthQuery = $conn->query("
     SELECT YEAR(date_registered) AS year, WEEK(date_registered, 1) AS week, COUNT(*) AS total
     FROM residents
     GROUP BY YEAR(date_registered), WEEK(date_registered, 1)
     ORDER BY YEAR(date_registered), WEEK(date_registered, 1)
 ");
-$weeks = [];
+
 $residentsPerWeek = [];
+$weeks = [];
+
 while($row = $growthQuery->fetch_assoc()){
-    $weeks[] = 'Y'.$row['year'].'-W'.$row['week'];
+    $year = $row['year'];
+    $week = $row['week'];
+
+    $dto = new DateTime();
+    $dto->setISODate($year, $week); 
+    $weekStart = $dto->format('M d'); 
+    $dto->modify('+6 days');
+    $weekEnd = $dto->format('M d'); 
+    $weeks[] = "$weekStart - $weekEnd";
     $residentsPerWeek[] = (int)$row['total'];
 }
 
@@ -65,17 +74,21 @@ $lastWeekTotal = $residentsPerWeek[count($residentsPerWeek) - 2] ?? 0;
 $currentWeekTotal = $residentsPerWeek[count($residentsPerWeek) - 1] ?? 0;
 
 if ($lastWeekTotal > 0) {
-    $growthPercent = (($currentWeekTotal - $lastWeekTotal) / $lastWeekTotal) * 100;
+    $growthRate = ($currentWeekTotal - $lastWeekTotal) / $lastWeekTotal;
+    $growthPercent = round(min($growthRate * 100, 100), 1);
+
     if ($growthPercent > 10) {
-        $message = "Resident population increased by " . round($growthPercent, 1) . "% compared to last week.";
+        $message = "Resident population increased by ".$growthPercent."% compared to last week.";
         $title = "Population Alert";
         $type = "system";
         $priority = "high";
         $date_created = date('Y-m-d H:i:s');
+
         $checkQuery = $conn->prepare("SELECT COUNT(*) AS cnt FROM notifications WHERE message=? AND from_role='system'");
         $checkQuery->bind_param("s", $message);
         $checkQuery->execute();
         $result = $checkQuery->get_result()->fetch_assoc();
+
         if ($result['cnt']==0) {
             $insertQuery = $conn->prepare("INSERT INTO notifications (resident_id,message,from_role,title,type,priority,is_read,date_created) VALUES (NULL,?,?,?,?,?,0,?)");
             $insertQuery->bind_param("ssssss",$message,$title,$type,$priority,$date_created,$date_created);
@@ -83,6 +96,7 @@ if ($lastWeekTotal > 0) {
         }
     }
 }
+
 
 $pendingThreshold = 10;
 if ($pendingCertificates >= $pendingThreshold) {
@@ -138,10 +152,11 @@ while($row = $recentTransactionsQuery->fetch_assoc()){
 
 $notificationsQuery = $conn->query(" 
     SELECT * FROM notifications
-    WHERE from_role = 'resident'
+    WHERE from_role IN ('resident', 'system')
     ORDER BY date_created DESC
     LIMIT 5
 ");
+
 
 $notifications = [];
 while ($row = $notificationsQuery->fetch_assoc()) {
@@ -225,7 +240,9 @@ $predictedCertNextWeek=round(linear_regression_forecast($certWeeksNumeric,$certP
 <div class=" flex h-screen">
 <aside id="sidebar" class="w-64 bg-gradient-to-b from-blue-500 to-blue-700 text-white flex flex-col shadow-xl transition-all duration-300 h-screen">
     <div class="flex items-center justify-between p-4 border-b border-white/20">
-        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogo) ?>" alt="Barangay Logo" class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white transition-all">
+        <div class="flex items-center space-x-3"> <img src="<?= htmlspecialchars($systemLogo) ?>"
+         alt="Barangay Logo"
+         class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white bg-white p-1 transition-all">
             <span class="font-semibold text-lg sidebar-text"><?= htmlspecialchars($barangayName) ?></span>
         </div>
         <button id="toggleSidebar" class="material-icons cursor-pointer text-2xl">chevron_left</button>
@@ -309,7 +326,7 @@ $predictedCertNextWeek=round(linear_regression_forecast($certWeeksNumeric,$certP
           <span class="material-icons mr-3">admin_panel_settings</span><span class="sidebar-text">System User</span>
         </a>
         <a href="user_manage/log_activity.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
-          <span class="material-icons mr-3">history</span><span class="sidebar-text">Log Activity</span>
+          <span class="material-icons mr-3">history</span><span class="sidebar-text">Activity Logs</span>
         </a>
         <a href="user_manage/settings.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
           <span class="material-icons mr-3">settings</span><span class="sidebar-text">Settings</span>
@@ -328,7 +345,6 @@ $predictedCertNextWeek=round(linear_regression_forecast($certWeeksNumeric,$certP
     <h2 class="text-2xl font-bold text-gray-800">Dashboard</h2>
     <div class="flex items-center space-x-4">
 
-      <!-- Notifications -->
       <div class="relative" id="notificationWrapper">
         <button id="notificationBtn" class="relative p-2 rounded-full hover:bg-gray-100 transition">
           <?php if($unreadCount > 0): ?>
@@ -340,24 +356,26 @@ $predictedCertNextWeek=round(linear_regression_forecast($certWeeksNumeric,$certP
         </button>
 
         <div id="notificationDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white shadow-lg rounded-xl z-50 overflow-hidden">
-          <ul class="divide-y divide-gray-200 max-h-96 overflow-y-auto">
-            <?php if(empty($notifications)): ?>
-              <li class="p-3 text-gray-500 text-sm text-center">No notifications</li>
-            <?php else: ?>
-              <?php foreach($notifications as $note): ?>
-                <li class="px-4 py-3 hover:bg-gray-100 cursor-pointer notification-item <?= $note['is_read'] == 0 ? 'font-semibold' : '' ?>"
+         <ul class="divide-y divide-gray-200 max-h-96 overflow-y-auto">
+            <?php foreach($notifications as $i => $note): ?>
+              <?php if($i < 10): ?>
+                <li class="px-4 py-3 hover:bg-gray-100 cursor-pointer notification-item"
                     data-id="<?= $note['notification_id'] ?>"
-                    data-resident="<?= $note['resident_id'] ?>">
+                    data-resident="<?= $note['resident_id'] ?>"
+                    data-type="<?= htmlspecialchars($note['type'] ?? 'general') ?>">
                   <p class="text-gray-700 text-sm"><?= htmlspecialchars($note['message']) ?></p>
                   <span class="text-gray-400 text-xs"><?= date('M d, Y H:i', strtotime($note['date_created'])) ?></span>
                 </li>
-              <?php endforeach; ?>
-            <?php endif; ?>
+              <?php endif; ?>
+            <?php endforeach; ?>
+            <li class="text-center py-2">
+              <a href="notifications.php" class="text-blue-600 text-sm hover:underline">View All Notifications</a>
+            </li>
           </ul>
+
         </div>
       </div>
 
-      <!-- User Dropdown -->
       <div class="relative">
         <button id="userBtn" class="flex items-center space-x-2 cursor-pointer focus:outline-none p-2 rounded-lg hover:bg-gray-100 transition">
           <img src="https://img.icons8.com/color/48/000000/user.png" class="w-8 h-8 rounded-full"/>
@@ -388,26 +406,27 @@ $predictedCertNextWeek=round(linear_regression_forecast($certWeeksNumeric,$certP
   </header>
 
 <main class="flex-1 overflow-y-auto p-6 space-y-6">
-  <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-    <?php if($role === 'admin'): ?>
-      <div onclick="window.location.href='residents/resident.php?openAdd=true'" 
-           class="flex items-center justify-center gap-2 p-3 bg-green-100 rounded-lg shadow hover:shadow-md cursor-pointer transition transform hover:-translate-y-1">
-        <span class="text-green-600 text-xl">🧑‍🤝‍🧑</span>
-        <span class="font-semibold text-green-700">Add Resident</span>
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+      <?php if($role === 'admin'): ?>
+        <div onclick="window.location.href='residents/resident.php?openAdd=true'" 
+            class="flex items-center justify-center gap-2 p-3 bg-green-100 rounded-lg shadow hover:shadow-md cursor-pointer transition transform hover:-translate-y-1">
+          <span class="text-green-600 text-xl">🧑‍🤝‍🧑</span>
+          <span class="font-semibold text-green-700">Add Resident</span>
+        </div>
+      <?php endif; ?>
+
+      <div onclick="window.location.href='certificate/walkin_certificates.php?openAdd=true'" 
+          class="flex items-center justify-center gap-2 p-3 bg-blue-100 rounded-lg shadow hover:shadow-md cursor-pointer transition transform hover:-translate-y-1">
+        <span class="text-blue-600 text-xl">📄</span>
+        <span class="font-semibold text-blue-700">Issue Certificate</span> 
       </div>
-    <?php endif; ?>
 
-    <div onclick="window.location.href='certificate/walkin_certificates.php?openAdd=true'" 
-         class="flex items-center justify-center gap-2 p-3 bg-blue-100 rounded-lg shadow hover:shadow-md cursor-pointer transition transform hover:-translate-y-1">
-      <span class="text-blue-600 text-xl">📄</span>
-      <span class="font-semibold text-blue-700">Generate Certificate</span>
+      <div class="flex items-center justify-center gap-2 p-3 bg-yellow-100 rounded-lg shadow hover:shadow-md cursor-pointer transition transform hover:-translate-y-1">
+        <span class="text-yellow-600 text-xl">📊</span>
+        <span class="font-semibold text-yellow-700">View Reports</span>
+      </div>
     </div>
 
-    <div class="flex items-center justify-center gap-2 p-3 bg-yellow-100 rounded-lg shadow hover:shadow-md cursor-pointer transition transform hover:-translate-y-1">
-      <span class="text-yellow-600 text-xl">📊</span>
-      <span class="font-semibold text-yellow-700">Generate Report</span>
-    </div>
-  </div>
 
   <div class="bg-white p-5 rounded-xl shadow">
       <h3 class="text-gray-700 font-semibold mb-4">Population Scenario Analysis</h3>
@@ -537,11 +556,10 @@ const COLORS = {
     yellow:'#FACC15', red:'#EF4444', purple:'#A855F7', cyan:'#06B6D4', gray:'#4B5563'
 };
 
-// Animate counters slowly & smoothly
 function animateCounter(id, value){
     const elem = document.getElementById(id);
     if(!elem) return;
-    const duration = 2000; // 2 seconds
+    const duration = 2000; 
     const startTime = performance.now();
 
     function update(currentTime){
@@ -556,9 +574,7 @@ function animateCounter(id, value){
     requestAnimationFrame(update);
 }
 
-// Initialize all charts
 function initCharts(){
-    // Population Chart
     const populationCtx = document.getElementById('populationChart').getContext('2d');
     const gradient = populationCtx.createLinearGradient(0,0,0,200);
     gradient.addColorStop(0,'rgba(16,185,129,0.2)');
@@ -608,8 +624,6 @@ function initCharts(){
             animation:{duration:2000, easing:'easeOutCubic'}
         }
     });
-
-    // Certificate Chart
     const certificateCtx = document.getElementById('certificateChart').getContext('2d');
     new Chart(certificateCtx,{
         type:'bar',
@@ -642,7 +656,6 @@ function initCharts(){
         }
     });
 
-    // Decision Support Chart
     const ctxDecision = document.getElementById('decisionSupportChart').getContext('2d');
     new Chart(ctxDecision,{
         type:'bar',
@@ -727,7 +740,6 @@ document.addEventListener('DOMContentLoaded',()=>{
 
     initCharts();
 
-    // Animate counters on scroll
     const stats = {
         totalResidents: <?= $totalResidents ?>,
         activePermits: <?= $activePermits??0 ?>,
@@ -752,7 +764,6 @@ document.addEventListener('DOMContentLoaded',()=>{
     document.querySelectorAll('.stat-counter,.chart-card').forEach(el=>observer.observe(el));
 });
 
-// Table row navigation
 document.querySelectorAll('#transactionsTable tbody tr').forEach(row=>{
     row.addEventListener('click',e=>{
         if(e.target.tagName==='BUTTON'||e.target.tagName==='INPUT') return;
@@ -763,13 +774,11 @@ document.querySelectorAll('#transactionsTable tbody tr').forEach(row=>{
     });
 });
 
-// Search filter
 document.getElementById('searchTable').addEventListener('input',function(){
     const filter=this.value.toLowerCase();
     document.querySelectorAll('#transactionsTable tbody tr').forEach(row=>row.style.display=row.innerText.toLowerCase().includes(filter)?'':'none');
 });
 
-// Notification dropdown
 const notificationBtn=document.getElementById('notificationBtn');
 const notificationDropdown=document.getElementById('notificationDropdown');
 const notificationWrapper=document.getElementById('notificationWrapper');
@@ -779,24 +788,39 @@ document.addEventListener('click',e=>{
     if(!notificationWrapper.contains(e.target)) notificationDropdown.classList.add('hidden');
 });
 
-document.querySelectorAll('.notification-item').forEach(item=>{
-    item.addEventListener('click',()=>{
-        const notificationId=item.dataset.id;
-        const residentId=item.dataset.resident;
-        fetch(`mark_notification_read.php?id=${notificationId}`).then(()=>{
+document.querySelectorAll('.notification-item').forEach(item => {
+    item.addEventListener('click', () => {
+        const notificationId = item.dataset.id;
+        const residentId = item.dataset.resident;
+        const type = item.dataset.type;
+
+        fetch(`mark_notification_read.php?id=${notificationId}`).then(() => {
             item.classList.remove('font-bold');
-            const countBadge=document.getElementById('notificationCount');
+            const countBadge = document.getElementById('notificationCount');
             if(countBadge){
-                let count=parseInt(countBadge.innerText)-1;
-                if(count<=0) countBadge.remove();
-                else countBadge.innerText=count;
+                let count = parseInt(countBadge.innerText) - 1;
+                if(count <= 0) countBadge.remove();
+                else countBadge.innerText = count;
             }
         });
-        window.location.href=`residents/resident.php?resident_id=${residentId}`;
+
+        switch(type){
+            case 'blotter':
+                window.location.href = `blotter/blotter.php?id=${residentId}`;
+                break;
+            case 'certificate':
+                window.location.href = `certificate/certificate_requests.php?id=${residentId}`;
+                break;
+            case 'resident':
+                window.location.href = `residents/resident.php?resident_id=${residentId}`;
+                break;
+            default:
+                window.location.href = '#'; 
+        }
     });
 });
 
-// User dropdown
+
 const userBtn=document.getElementById('userBtn');
 const userDropdown=document.getElementById('userDropdown');
 userBtn.addEventListener('click',()=>userDropdown.classList.toggle('hidden'));
@@ -804,7 +828,6 @@ document.addEventListener('click',e=>{
     if(!userBtn.contains(e.target)&&!userDropdown.contains(e.target)) userDropdown.classList.add('hidden');
 });
 
-// Sidebar toggle
 const toggleSidebar=document.getElementById('toggleSidebar');
 const sidebar=document.getElementById('sidebar');
 toggleSidebar.addEventListener('click',()=>{

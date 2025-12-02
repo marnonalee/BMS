@@ -52,7 +52,6 @@ $req = $conn->query("
     WHERE b.id=$requestId
 ")->fetch_assoc();
 
-// --- PDF generation (optional, still saved if Approved) ---
 $templatePath = __DIR__ . '/../templates/Barangay_id.pdf';
 $generatedDir = __DIR__ . '/../generated_ids/';
 if(!file_exists($generatedDir)) mkdir($generatedDir,0777,true);
@@ -99,7 +98,6 @@ if($req['status'] === 'Approved') {
     ");
 }
 
-// --- PHPMailer Email Notification ---
 if(!empty($req['email_address'])) {
     $settingsQuery = $conn->query("SELECT system_email, app_password, barangay_name FROM system_settings LIMIT 1");
     $settings = $settingsQuery->fetch_assoc();
@@ -122,18 +120,18 @@ if(!empty($req['email_address'])) {
         $mail->isHTML(true);
 
         if($req['status'] === 'Approved'){
-            $mail->Subject = 'Aprubadong Barangay ID Request';
+            $mail->Subject = 'Approved Barangay ID Request';
             $mail->Body    = "
                 Kamusta {$req['first_name']} {$req['last_name']},<br><br>
-                Ang iyong request para sa Barangay ID ay <strong>aprubado</strong> na.<br>
+                Ang iyong request para sa Barangay ID ay <strong>approved</strong> na.<br>
                 <strong>ID Number:</strong> {$req['id_number']}<br><br>
                 Maraming salamat,<br>{$barangayName}
             ";
         } elseif($req['status'] === 'Rejected'){
-            $mail->Subject = 'Hindi Aprubadong Barangay ID Request';
+            $mail->Subject = 'Hindi Approved Barangay ID Request';
             $mail->Body    = "
                 Kamusta {$req['first_name']} {$req['last_name']},<br><br>
-                Paumanhin, ang iyong request para sa Barangay ID ay <strong>hindi aprubado</strong>.<br>
+                Paumanhin, ang iyong request para sa Barangay ID ay <strong>hindi approved</strong>.<br>
                 Mangyaring bumisita sa tanggapan ng Barangay para sa karagdagang impormasyon.<br><br>
                 Maraming salamat,<br>{$barangayName}
             ";
@@ -147,15 +145,21 @@ if(!empty($req['email_address'])) {
 }
 
 $message = ($req['status'] === 'Approved') ? 
-    "Ang iyong Barangay ID request ay aprubado." : 
-    "Paumanhin, ang iyong Barangay ID request ay hindi aprubado.";
+    "Ang iyong Barangay ID request ay approved." : 
+    "Paumanhin, ang iyong Barangay ID request ay hindi approved.";
 $title = ($req['status'] === 'Approved') ? "Aprubadong Request" : "Rejected Request";
+
+$fromRole = $_SESSION['role'] ?? 'system'; 
 
 $stmt = $conn->prepare("
     INSERT INTO notifications 
-    (resident_id, message, from_role, title, type, priority, action_type, is_read, sent_email, date_created) 
-    VALUES (?, ?, 'system', ?, 'general', 'normal', 'updated', 0, 0, NOW())
+(resident_id, message, from_role, title, type, priority, action_type, is_read, sent_email, date_created) 
+VALUES (?, ?, ?, 'general', 'normal', 'updated', 0, 0,0, NOW())
+
 ");
+$stmt->bind_param("iss", $resident_id, $message, $fromRole);
+$stmt->execute();
+
 $stmt->bind_param("iss", $req['resident_id'], $message, $title);
 $stmt->execute();
 

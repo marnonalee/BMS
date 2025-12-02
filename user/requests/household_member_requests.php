@@ -292,20 +292,21 @@ $stmtReqs->close();
 <header class="flex items-center justify-between bg-white shadow-md px-6 py-4 rounded-b-2xl flex-shrink-0 mb-6">
     <h2 class="text-2xl font-bold text-gray-700">Household Member Requests</h2>
   
-    <div class="flex items-center space-x-3">
-      <input type="text" id="searchInput" placeholder="Search residents..."
-             class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 text-sm transition">
-
-     
-    </div>
+  
 </header>
 
 <main class="flex-1 overflow-y-auto p-6 bg-gray-50">
     <div class="max-w-7xl mx-auto space-y-8">
 
-        <!-- Household Members Requests -->
         <div class="bg-white p-6 rounded-2xl shadow-lg overflow-x-auto">
-            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Pending Household Member Requests</h2>
+           <div class="flex items-center justify-between mb-4">
+                <h2 class="text-2xl font-semibold text-gray-800">Pending Household Member Requests</h2>
+                <div class="flex items-center space-x-3">
+                    <input type="text" id="searchInput" placeholder="Search residents..."
+                          class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 text-sm transition">
+                </div>
+            </div>
+
             <table class="min-w-full divide-y divide-gray-200" id="householdMembersTable">
                 <thead class="bg-gray-100">
                     <tr>
@@ -319,33 +320,40 @@ $stmtReqs->close();
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200">
-                    <?php if($requestsQuery->num_rows > 0): ?>
-                        <?php while($req = $requestsQuery->fetch_assoc()): ?>
-                        <tr class="hover:bg-gray-50 transition cursor-pointer">
-                            <td class="px-6 py-4 font-medium text-gray-800"><?= htmlspecialchars($req['member_first_name'].' '.$req['member_last_name']) ?></td>
-                            <td class="px-6 py-4 text-gray-600"><?= htmlspecialchars($req['relationship']) ?></td>
-                            <td class="px-6 py-4 text-gray-600"><?= date('F j, Y', strtotime($req['birthdate'])) ?></td>
-                            <td class="px-6 py-4 text-gray-600"><?= htmlspecialchars($req['head_first_name'].' '.$req['head_last_name']) ?></td>
-                            <td class="px-6 py-4 text-gray-600"><?= htmlspecialchars($req['head_address']) ?></td>
-                            <td class="px-6 py-4 text-gray-600"><?= date('F j, Y', strtotime($req['date_created'])) ?></td>
-                            <td class="px-6 py-4 text-center flex justify-center gap-2">
-                                <form method="POST" class="inline">
-                                    <input type="hidden" name="request_id" value="<?= $req['request_id'] ?>">
-                                    <button type="submit" name="approve_request" class="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium">Approve</button>
-                                </form>
-                                <form method="POST" class="inline">
-                                    <input type="hidden" name="request_id" value="<?= $req['request_id'] ?>">
-                                    <button type="submit" name="reject_request" class="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium">Reject</button>
-                                </form>
-                            </td>
-                        </tr>
-                        <?php endwhile; ?>
-                    <?php else: ?>
-                        <tr>
-                            <td colspan="7" class="px-6 py-4 text-center text-gray-400">No pending household member requests.</td>
-                        </tr>
-                    <?php endif; ?>
+                <?php if($requestsQuery->num_rows > 0): ?>
+                    <?php while($req = $requestsQuery->fetch_assoc()):
+                        $stmtHouse = $conn->prepare("SELECT household_id FROM households WHERE head_resident_id=?");
+                        $stmtHouse->bind_param("i", $req['household_head_id']);
+                        $stmtHouse->execute();
+                        $household_id = $stmtHouse->get_result()->fetch_assoc()['household_id'] ?? 0;
+                        $stmtHouse->close();
+                    ?>
+                    <tr class="hover:bg-gray-50 transition cursor-pointer" data-household-id="<?= $household_id ?>">
+                        <td class="px-6 py-4 font-medium text-gray-800"><?= htmlspecialchars($req['member_first_name'].' '.$req['member_last_name']) ?></td>
+                        <td class="px-6 py-4 text-gray-600"><?= htmlspecialchars($req['relationship']) ?></td>
+                        <td class="px-6 py-4 text-gray-600"><?= date('F j, Y', strtotime($req['birthdate'])) ?></td>
+                        <td class="px-6 py-4 text-gray-600"><?= htmlspecialchars($req['head_first_name'].' '.$req['head_last_name']) ?></td>
+                        <td class="px-6 py-4 text-gray-600"><?= htmlspecialchars($req['head_address']) ?></td>
+                        <td class="px-6 py-4 text-gray-600"><?= date('F j, Y', strtotime($req['date_created'])) ?></td>
+                        <td class="px-6 py-4 text-center flex justify-center gap-2">
+                            <form method="POST" class="inline">
+                                <input type="hidden" name="request_id" value="<?= $req['request_id'] ?>">
+                                <button type="submit" name="approve_request" class="px-3 py-1 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium">Approve</button>
+                            </form>
+                            <form method="POST" class="inline">
+                                <input type="hidden" name="request_id" value="<?= $req['request_id'] ?>">
+                                <button type="submit" name="reject_request" class="px-3 py-1 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium">Reject</button>
+                            </form>
+                        </td>
+                    </tr>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                    <tr>
+                        <td colspan="7" class="px-6 py-4 text-center text-gray-400">No pending household member requests.</td>
+                    </tr>
+                <?php endif; ?>
                 </tbody>
+
             </table>
 
             <!-- Pagination -->
@@ -393,6 +401,44 @@ document.getElementById('successModal').classList.remove('hidden');
 
 document.getElementById('closeSuccessModal').addEventListener('click', () => document.getElementById('successModal').classList.add('hidden'));
 document.getElementById('okSuccessModal').addEventListener('click', () => document.getElementById('successModal').classList.add('hidden'));
+document.querySelectorAll('#householdMembersTable tbody tr[data-household-id]').forEach(row => {
+    row.addEventListener('click', function(e) {
+        if(e.target.tagName.toLowerCase() === 'button' || e.target.tagName.toLowerCase() === 'input') return;
+        
+        const householdId = this.dataset.householdId;
+        if(householdId) {
+            window.location.href = '../households/household.php?household_id=' + householdId;
+        }
+    });
+});
+
+const searchInput = document.getElementById('searchInput');
+const tableRows = document.querySelectorAll('#householdMembersTable tbody tr');
+
+searchInput.addEventListener('input', function() {
+    const filter = this.value.toLowerCase();
+    let visibleCount = 0;
+
+    tableRows.forEach(row => {
+        const text = row.textContent.toLowerCase();
+        if(text.includes(filter)) {
+            row.style.display = '';
+            visibleCount++;
+        } else {
+            row.style.display = 'none';
+        }
+    });
+
+    let noResultRow = document.querySelector('#householdMembersTable tbody tr.no-result');
+    if(!noResultRow) {
+        noResultRow = document.createElement('tr');
+        noResultRow.classList.add('no-result');
+        noResultRow.innerHTML = `<td colspan="7" class="px-6 py-4 text-center text-gray-400">No results found.</td>`;
+        document.querySelector('#householdMembersTable tbody').appendChild(noResultRow);
+    }
+
+    noResultRow.style.display = visibleCount === 0 ? '' : 'none';
+});
 </script>
 </body>
 </html>

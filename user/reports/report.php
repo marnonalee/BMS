@@ -181,7 +181,7 @@ $systemLogoPath = '../' . $systemLogo;
           <span class="material-icons mr-3">admin_panel_settings</span><span class="sidebar-text">System User</span>
         </a>
         <a href="../user_manage/log_activity.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
-          <span class="material-icons mr-3">history</span><span class="sidebar-text">Log Activity</span>
+          <span class="material-icons mr-3">history</span><span class="sidebar-text">Activity Logs</span>
         </a>
         <a href="../user_manage/settings.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
           <span class="material-icons mr-3">settings</span><span class="sidebar-text">Settings</span>
@@ -196,7 +196,7 @@ $systemLogoPath = '../' . $systemLogo;
 </aside>
 <div class="flex-1 flex flex-col overflow-hidden bg-gray-50">
   <header class="flex-shrink-0 flex items-center justify-between bg-white shadow-md px-6 py-4 rounded-b-2xl mb-6">
-    <h2 class="text-2xl font-bold text-gray-800">Barangay Reports</h2>
+    <h2 class="text-2xl font-bold text-gray-800">Resident Reports</h2>
     <button id="exportExcelBtn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded shadow flex items-center gap-2">
     <span class="material-icons">file_download</span> Export Excel
 </button>
@@ -363,7 +363,6 @@ $systemLogoPath = '../' . $systemLogo;
       </tr>
     </thead>
     <tbody id="residentsBody" class="divide-y divide-gray-100 hover:divide-gray-200">
-      <!-- Table rows will be dynamically inserted here -->
     </tbody>
   </table>
 
@@ -378,10 +377,9 @@ $systemLogoPath = '../' . $systemLogo;
 
 <script>
 document.getElementById('exportExcelBtn').addEventListener('click', () => {
-    const table = document.getElementById('residentsTable');
-    const wb = XLSX.utils.table_to_book(table, { sheet: "Residents" });
-    XLSX.writeFile(wb, 'Residents_Report.xlsx');
+    window.location.href = 'export_all_residents.php';
 });
+
 
 const residentsSexCtx = document.getElementById('residentsSexChart').getContext('2d');
 const ageCtx = document.getElementById('ageChart').getContext('2d');

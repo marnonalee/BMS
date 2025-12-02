@@ -176,7 +176,6 @@ while ($row = $msgResult->fetch_assoc()) {
 // ----------- SEND MESSAGE -----------
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
 
-    // 1. Check if blotter is closed
     if ($record['status'] === 'closed') {
         $_SESSION['error'] = "This case is closed. You cannot send messages.";
         header("Location: blotter_view.php?id=$blotterId");
@@ -188,7 +187,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['message'])) {
         $senderId = $user_id;
         $senderRole = in_array($userRole, ['staff','admin']) ? $userRole : 'resident';
 
-        // ----------- AUTO-UPDATE STATUS FOR RESIDENT MESSAGE -----------
         if ($senderRole === 'resident' && $record['status'] === 'pending') {
             $newStatus = 'open'; 
             $stmtUpdateStatus = $conn->prepare("UPDATE blotter_records SET status = ? WHERE blotter_id = ?");

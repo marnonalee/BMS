@@ -29,7 +29,8 @@ if($search !== '') {
     $where .= " AND (first_name LIKE '%$searchEscaped%' OR last_name LIKE '%$searchEscaped%' OR middle_name LIKE '%$searchEscaped%')";
 }
 
-$residentsQuery = $conn->query("SELECT * FROM residents WHERE $where ORDER BY last_name ASC");
+$residentsQuery = $conn->query("SELECT * FROM residents WHERE $where ORDER BY last_name $sort");
+
 $archivedQuery = $conn->query("SELECT * FROM residents WHERE is_archived=1 ORDER BY last_name ASC");
 
 $settingsQuery = $conn->query("SELECT barangay_name, system_logo FROM system_settings LIMIT 1");
@@ -37,6 +38,11 @@ $settings = $settingsQuery->fetch_assoc();
 $barangayName = $settings['barangay_name'] ?? 'Barangay Name';
 $systemLogo = $settings['system_logo'] ?? 'default-logo.png';
 $systemLogoPath = '../' . $systemLogo;
+$sort = $_GET['sort'] ?? 'ASC'; // default to A-Z
+
+// Ensure only valid values are used
+$sort = strtoupper($sort) === 'DESC' ? 'DESC' : 'ASC';
+
 ?>
 
 
@@ -141,7 +147,7 @@ $systemLogoPath = '../' . $systemLogo;
           <span class="material-icons mr-3">admin_panel_settings</span><span class="sidebar-text">System User</span>
         </a>
         <a href="../user_manage/log_activity.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
-          <span class="material-icons mr-3">history</span><span class="sidebar-text">Log Activity</span>
+          <span class="material-icons mr-3">history</span><span class="sidebar-text">Activity Logs</span>
         </a>
         <a href="../user_manage/settings.php" class="flex items-center px-4 py-3 rounded hover:bg-white/10 mt-1 transition-colors">
           <span class="material-icons mr-3">settings</span><span class="sidebar-text">Settings</span>
@@ -161,9 +167,6 @@ $systemLogoPath = '../' . $systemLogo;
   
   <?php if($role === 'admin'): ?>
     <div class="flex items-center space-x-3">
-      <input type="text" id="searchInput" placeholder="Search residents..."
-             class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 text-sm transition">
-
       <button id="addResidentBtn"
               class="bg-emerald-500 hover:bg-emerald-600 text-white px-5 py-2 rounded-lg shadow font-medium transition">
         Add Resident
@@ -237,15 +240,16 @@ $systemLogoPath = '../' . $systemLogo;
           </select>
         </div>
       </div>
-      
+    <input type="text" id="searchInput" placeholder="Search residents..."
+       class="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:border-emerald-400 text-sm transition w-full md:w-64 mb-4">
 
       <div class="bg-white p-6 rounded-2xl shadow-lg overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200" id="residentsTable">
             <thead class="bg-gray-100">
                 <tr>
+                   <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Last Name</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">First Name</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Middle Name</th>
-                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Last Name</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sex</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Voter Status</th>
                     <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Resident Address</th>
@@ -259,9 +263,9 @@ $systemLogoPath = '../' . $systemLogo;
                 <?php if($residentsQuery->num_rows > 0): ?>
                     <?php while($resident = $residentsQuery->fetch_assoc()): ?>
                         <tr class="hover:bg-gray-50 cursor-pointer transition" data-resident='<?= json_encode($resident) ?>'>
+                          <td class="px-6 py-4"><?= htmlspecialchars($resident['last_name']) ?></td>
                             <td class="px-6 py-4"><?= htmlspecialchars($resident['first_name']) ?></td>
                             <td class="px-6 py-4"><?= htmlspecialchars($resident['middle_name']) ?></td>
-                            <td class="px-6 py-4"><?= htmlspecialchars($resident['last_name']) ?></td>
                             <td class="px-6 py-4"><?= htmlspecialchars($resident['sex']) ?></td>
                             <td class="px-6 py-4"><?= htmlspecialchars($resident['voter_status']) ?></td>
                             <td class="px-6 py-4"><?= htmlspecialchars($resident['resident_address']) ?></td>
@@ -325,29 +329,31 @@ $systemLogoPath = '../' . $systemLogo;
           </tr>
         </thead>
 
-        <<tbody class="bg-white divide-y divide-gray-200">
-    <?php if($residentsQuery->num_rows > 0): ?>
-        <?php while($resident = $residentsQuery->fetch_assoc()): ?>
-            <tr class="hover:bg-gray-50 cursor-pointer transition" data-resident='<?= json_encode($resident) ?>'>
-                <td class="px-6 py-4"><?= htmlspecialchars($resident['first_name']) ?></td>
-                <td class="px-6 py-4"><?= htmlspecialchars($resident['middle_name']) ?></td>
-                <td class="px-6 py-4"><?= htmlspecialchars($resident['last_name']) ?></td>
-                <td class="px-6 py-4"><?= htmlspecialchars($resident['sex']) ?></td>
-                <td class="px-6 py-4"><?= htmlspecialchars($resident['voter_status']) ?></td>
-                <td class="px-6 py-4"><?= htmlspecialchars($resident['resident_address']) ?></td>
-                <td class="px-6 py-4"><?= htmlspecialchars($resident['street']) ?></td>
-                <td class="px-6 py-4"><?= htmlspecialchars($resident['profession_occupation']) ?></td>
-                <td class="px-6 py-4"><?= htmlspecialchars($resident['employment_status']) ?></td>
-                <td class="px-6 py-4"><?= htmlspecialchars($resident['years_lived']) ?></td>
+        <tbody class="bg-white divide-y divide-gray-200">
+          <?php if($archivedQuery->num_rows > 0): ?>
+            <?php while($arch = $archivedQuery->fetch_assoc()): ?>
+              <tr class="hover:bg-gray-50 cursor-pointer transition" data-resident='<?= json_encode($arch) ?>'>
+                <td class="px-6 py-4">
+                  <input type="checkbox" class="selectArchived" value="<?= $arch['resident_id'] ?>">
+                </td>
+                <td class="px-6 py-4"><?= htmlspecialchars($arch['first_name']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($arch['middle_name']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($arch['last_name']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($arch['sex']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($arch['voter_status']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($arch['resident_address']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($arch['street']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($arch['profession_occupation']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($arch['employment_status']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($arch['years_lived']) ?></td>
+              </tr>
+            <?php endwhile; ?>
+          <?php else: ?>
+            <tr>
+              <td colspan="11" class="px-6 py-4 text-center text-gray-400">No archived residents.</td>
             </tr>
-        <?php endwhile; ?>
-    <?php else: ?>
-        <tr class="h-32">
-            <td colspan="10" class="flex items-center justify-center text-gray-400">No residents found.</td>
-        </tr>
-    <?php endif; ?>
-</tbody>
-
+          <?php endif; ?>
+        </tbody>
       </table>
 
 

@@ -39,14 +39,12 @@ $residents = [];
 
 while ($row = $result->fetch_assoc()) {
 
-    // Compute full name
     $full_name = trim(
         $row['first_name'] . ' ' .
         ($row['middle_name'] ? $row['middle_name'] . ' ' : '') .
         $row['last_name']
     );
 
-    // Full address
     $full_address = trim($row['resident_address'] . ' ' . $row['street']);
 
     $residents[] = [
@@ -56,13 +54,12 @@ while ($row = $result->fetch_assoc()) {
         'last_name' => $row['last_name'],
         'full_name' => $full_name,
         'birthdate' => $row['birthdate'],
-        'sex' => $row['sex'],                   // Gender
-        'civil_status' => $row['civil_status'], // Civil status
-        'voter_status' => $row['voter_status'], // Voter status
+        'sex' => $row['sex'],                   
+        'civil_status' => $row['civil_status'], 
+        'voter_status' => $row['voter_status'], 
         'resident_address' => $row['resident_address'],
         'street' => $row['street'],
         'full_address' => $full_address
-        // 'age' removed
     ];
 }
 

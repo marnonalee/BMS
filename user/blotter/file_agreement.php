@@ -98,9 +98,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $message = "Matagumpay na na-file ang iyong kasunduan sa blotter. Pakitingnan ang PDF na naka-attach sa email.";
-            $stmtNotify = $conn->prepare("INSERT INTO notifications (resident_id, message, from_role, title, type, priority, action_type, sent_email) VALUES (?, ?, 'system', ?, 'agreement', 'normal', 'created', ?)");
+            $fromRole = $_SESSION['role']; 
+            $stmtNotify = $conn->prepare("
+                INSERT INTO notifications 
+                (resident_id, message, from_role, title, type, priority, action_type, sent_email) 
+                VALUES (?, ?, ?, ?, 'agreement', 'normal', 'created', ?)
+            ");
             $title = "Kasunduan Blotter Filed";
-            $stmtNotify->bind_param("issi", $blotterData['complainant_id'], $message, $title, $sentEmail);
+            $stmtNotify->bind_param("isssi", $blotterData['complainant_id'], $message, $fromRole, $title, $sentEmail);
             $stmtNotify->execute();
 
             // --- Email & Notification for suspect if email exists ---
