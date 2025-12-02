@@ -33,8 +33,6 @@ $householdsQuery = $conn->query("
 
 ?>
 
-
-
 <!DOCTYPE html>
 <html>
 <head>
@@ -47,7 +45,10 @@ $householdsQuery = $conn->query("
 <div class="flex h-screen">
 <aside id="sidebar" class="w-64 bg-gradient-to-b from-blue-500 to-blue-700 text-white flex flex-col shadow-xl transition-all duration-300 h-screen">
     <div class="flex items-center justify-between p-4 border-b border-white/20">
-        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogoPath) ?>" alt="Barangay Logo" class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white transition-all">
+        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogoPath) ?>"
+     alt="Barangay Logo"
+     class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white bg-white p-1 transition-all">
+
             <span class="font-semibold text-lg sidebar-text"><?= htmlspecialchars($barangayName) ?></span>
         </div>
         <button id="toggleSidebar" class="material-icons cursor-pointer text-2xl">chevron_left</button>
@@ -177,21 +178,21 @@ $householdsQuery = $conn->query("
 
 
 <div class="space-y-4">
-    <?php 
-    $cardNumber = 1; 
-    while($household = $householdsQuery->fetch_assoc()):
-        $accId = "acc".$household['household_id'];
-        $household_id = intval($household['household_id']);
-        $headResidentId = isset($household['head_resident_id']) ? (int)$household['head_resident_id'] : 0;
+<?php 
+$cardNumber = 1; 
+while($household = $householdsQuery->fetch_assoc()):
+    $accId = "acc".$household['household_id'];
+    $household_id = intval($household['household_id']);
+    $headResidentId = isset($household['head_resident_id']) ? (int)$household['head_resident_id'] : 0;
 
-        $head = ['first_name'=>'N/A','last_name'=>'','resident_address'=>'','street'=>''];
-        if($headResidentId){
-            $headQuery = $conn->query("SELECT first_name, last_name, resident_address, street FROM residents WHERE resident_id = $headResidentId AND is_archived = 0");
-            if($headQuery) $head = $headQuery->fetch_assoc();
-        }
+    $head = ['first_name'=>'N/A','last_name'=>'','resident_address'=>'','street'=>''];
+    if($headResidentId){
+        $headQuery = $conn->query("SELECT first_name, last_name, resident_address, street FROM residents WHERE resident_id = $headResidentId AND is_archived = 0");
+        if($headQuery) $head = $headQuery->fetch_assoc();
+    }
 
     $membersQuery = $conn->query("
-        SELECT resident_id, first_name, last_name
+        SELECT resident_id, first_name, last_name, relationship
         FROM residents
         WHERE household_id = $household_id
         AND resident_id != $headResidentId
@@ -199,8 +200,7 @@ $householdsQuery = $conn->query("
         AND is_archived = 0
         ORDER BY last_name ASC
     ");
-
-    ?>
+?>
 <div class="household-card bg-white shadow-lg rounded-xl overflow-hidden relative border border-gray-200">
     <button onclick="toggleAccordion('<?= $accId ?>')" class="w-full text-left px-6 py-4 flex justify-between items-center hover:bg-gray-50 transition">
         <div>
@@ -216,7 +216,9 @@ $householdsQuery = $conn->query("
         <div id="members-list-<?= $accId ?>" class="mt-2 space-y-2">
             <?php $count=1; while($member=$membersQuery->fetch_assoc()): ?>
             <div class="flex items-center justify-between bg-white px-3 py-2 rounded shadow-sm hover:bg-gray-50 transition">
-                <span><?= $count ?>. <?= htmlspecialchars($member['first_name'].' '.$member['last_name']) ?></span>
+                <span><?= $count ?>. <?= htmlspecialchars($member['first_name'].' '.$member['last_name']) ?> 
+                    <?= !empty($member['relationship']) ? '('.htmlspecialchars($member['relationship']).')' : '' ?>
+                </span>
                 <div class="space-x-2">
                     <button onclick="editMember(<?= $member['resident_id'] ?>,'<?= htmlspecialchars($member['first_name']) ?>','<?= htmlspecialchars($member['last_name']) ?>')" class="text-blue-600 hover:underline text-sm">Edit</button>
                     <button onclick="removeMember(<?= $member['resident_id'] ?>,<?= $household_id ?>,'<?= $accId ?>')" class="text-red-600 hover:underline text-sm">Remove</button>
@@ -225,17 +227,29 @@ $householdsQuery = $conn->query("
             <?php $count++; endwhile; ?>
             <?php if($count==1) echo "<p class='text-gray-500'>No members yet.</p>"; ?>
         </div>
+
         <form onsubmit="addMember(event,<?= $household_id ?>,'<?= $accId ?>')" class="mt-4 flex items-center space-x-2">
-            <input id="input-<?= $accId ?>" type="text" placeholder="Type resident name..." autocomplete="off"
-                class="flex-1 border-b-2 border-gray-300 focus:border-emerald-500 outline-none py-2 pl-3 bg-transparent transition">
+            <input id="input-<?= $accId ?>" type="text" placeholder="Type resident name..." autocomplete="off" class="flex-1 border-b-2 border-gray-300 focus:border-emerald-500 outline-none py-2 pl-3 bg-transparent transition">
             <input id="resident-id-<?= $accId ?>" type="hidden">
+            
+            <select id="relationship-<?= $accId ?>" class="border-b-2 border-gray-300 focus:border-emerald-500 outline-none py-2 px-2 bg-transparent">
+                <option value="">Select Relationship (optional)</option>
+                <option value="Spouse">Spouse</option>
+                <option value="Child">Child</option>
+                <option value="Parent">Parent</option>
+                <option value="Sibling">Sibling</option>
+                <option value="Other">Other</option>
+            </select>
+
             <button type="submit" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition">Add</button>
         </form>
+
     </div>
 </div>
 <div id="search-<?= $accId ?>" class="absolute bg-white border border-gray-200 rounded shadow-lg max-h-48 overflow-y-auto hidden z-50"></div>
 <?php $cardNumber++; endwhile; ?>
 </div>
+
 
 
 </main>
@@ -453,17 +467,27 @@ function addMember(event,familyId,accId){
     event.preventDefault();
     const input=document.getElementById('input-'+accId);
     const residentId=document.getElementById('resident-id-'+accId).value;
+    const relationship=document.getElementById('relationship-'+accId).value; 
+    
     if(!residentId){showModal("Select a resident from the dropdown.",'error'); return;}
+    
     fetch('add_member.php',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({household_id:familyId,resident_id:residentId})
+        body:JSON.stringify({
+            household_id:familyId,
+            resident_id:residentId,
+            relationship: relationship 
+        })
     }).then(res=>res.json())
     .then(res=>{
         showModal(res.message,res.success?'success':'error',()=>{if(res.success) refreshMembers(familyId,accId);});
-        input.value=''; document.getElementById('resident-id-'+accId).value='';
+        input.value=''; 
+        document.getElementById('resident-id-'+accId).value='';
+        document.getElementById('relationship-'+accId).value=''; 
     });
 }
+
 
 let editResidentId = null;
 let removeResidentData = {};
@@ -520,20 +544,30 @@ function refreshMembers(familyId, accId){
         let hidden = document.getElementById('resident-id-' + accId);
         hidden.value = '';
         input.value = '';
+
         if(data.length === 0){
-            listDiv.innerHTML = '<p>No members yet.</p>';
+            listDiv.innerHTML = '<p class="text-gray-500">No members yet.</p>';
             return;
         }
+
         let count = 1;
         data.forEach(m => {
-            listDiv.innerHTML += `<p>${count}. ${m.first_name} ${m.last_name} 
-                <button onclick="editMember(${m.resident_id},'${m.first_name}','${m.last_name}')" class="ml-2 text-blue-600 hover:underline text-sm">Edit</button>
-                <button onclick="removeMember(${m.resident_id}, ${familyId}, '${accId}')" class="ml-1 text-red-600 hover:underline text-sm">Remove</button>
-            </p>`;
+            const memberDiv = document.createElement('div');
+            memberDiv.className = 'flex items-center justify-between bg-white px-3 py-2 rounded shadow-sm hover:bg-gray-50 transition';
+            memberDiv.innerHTML = `
+                <span>${count}. ${m.first_name} ${m.last_name} ${m.relationship ? '(' + m.relationship + ')' : ''}</span>
+                <div class="space-x-2">
+                    <button onclick="editMember(${m.resident_id},'${m.first_name}','${m.last_name}')" class="text-blue-600 hover:underline text-sm">Edit</button>
+                    <button onclick="removeMember(${m.resident_id}, ${familyId}, '${accId}')" class="text-red-600 hover:underline text-sm">Remove</button>
+                </div>
+            `;
+            listDiv.appendChild(memberDiv);
             count++;
         });
-    });
+    })
+    .catch(err => console.error('Error refreshing members:', err));
 }
+
 
 document.getElementById("searchInput").addEventListener("input", function () {
     let query = this.value.toLowerCase();

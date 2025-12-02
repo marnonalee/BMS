@@ -7,25 +7,20 @@ if (!isset($_SESSION["user_id"])) {
 include '../db.php';
 include 'send_certificate_email.php';
 
-// Get logged-in user
 $user_id = $_SESSION["user_id"];
 $userQuery = $conn->query("SELECT * FROM users WHERE id = '$user_id'");
 $user = $userQuery->fetch_assoc();
 $role = $user['role'];
 
-// Pagination
 $perPage = isset($_GET['perPage']) ? (int)$_GET['perPage'] : 50;
 $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
 $start = ($page - 1) * $perPage;
 
-// Archive old certificates
 $conn->query("UPDATE generated_certificates SET is_archived = 1 WHERE is_archived = 0 AND date_generated <= DATE_SUB(NOW(), INTERVAL 7 DAY)");
 
-// Total requests
 $totalRequests = $conn->query("SELECT COUNT(*) AS cnt FROM certificate_requests")->fetch_assoc()['cnt'];
 $totalPages = ceil($totalRequests / $perPage);
 
-// Fetch requests
 $requestsQuery = $conn->query("
     SELECT cr.*, r.first_name, r.last_name, r.birthdate, r.resident_address, r.email_address, cr.supporting_doc, ct.template_name
     FROM certificate_requests cr
@@ -142,7 +137,10 @@ $systemLogoPath = '../' . $systemLogo;
 
 <aside id="sidebar" class="w-64 bg-gradient-to-b from-blue-500 to-blue-700 text-white flex flex-col shadow-xl transition-all duration-300 h-screen">
     <div class="flex items-center justify-between p-4 border-b border-white/20">
-        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogoPath) ?>" alt="Barangay Logo" class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white transition-all">
+        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogoPath) ?>"
+     alt="Barangay Logo"
+     class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white bg-white p-1 transition-all">
+
             <span class="font-semibold text-lg sidebar-text"><?= htmlspecialchars($barangayName) ?></span>
         </div>
         <button id="toggleSidebar" class="material-icons cursor-pointer text-2xl">chevron_left</button>
@@ -272,52 +270,69 @@ $systemLogoPath = '../' . $systemLogo;
               <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Request Type</th>
               <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
               <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Requested On</th>
+                <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Supporting Document</th>
               <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
           <tbody id="requestsTable" class="bg-white divide-y divide-gray-200">
-            <?php while($req = $requestsQuery->fetch_assoc()): ?>
-            <tr class="hover:bg-gray-50 transition-colors duration-200 cursor-pointer <?php if($req['status'] === 'Pending') echo 'bg-yellow-50'; ?>"
-                data-resident="<?= htmlspecialchars($req['first_name'] . ' ' . $req['last_name']) ?>"
-                data-birthdate="<?= htmlspecialchars($req['birthdate']) ?>"
-                data-address="<?= htmlspecialchars($req['resident_address']) ?>"
-                data-doc="<?= $req['supporting_doc'] ? '../../resident/uploads/valid_ids/' . $req['supporting_doc'] : '' ?>">
+              <?php if($requestsQuery->num_rows > 0): ?>
+                  <?php while($req = $requestsQuery->fetch_assoc()): ?>
+                  <tr class="hover:bg-gray-50 transition-colors duration-200 cursor-pointer 
+                    <?php if($req['status'] === 'Pending') echo 'bg-yellow-50 pendingRow'; ?>"
+                    data-resident="<?= htmlspecialchars($req['first_name'] . ' ' . $req['last_name']) ?>"
+                    data-birthdate="<?= htmlspecialchars($req['birthdate']) ?>"
+                    data-address="<?= htmlspecialchars($req['resident_address']) ?>"
+                    data-doc="<?= $req['supporting_doc'] ? '../../resident/uploads/valid_ids/' . $req['supporting_doc'] : '' ?>">
 
-              <td class="px-6 py-4"><?= htmlspecialchars($req['first_name'] . ' ' . $req['last_name']) ?></td>
-              <td class="px-6 py-4"><?= htmlspecialchars($req['template_name']) ?></td>
-              <td class="px-6 py-4"><?= htmlspecialchars($req['purpose']) ?></td>
-              <td class="px-6 py-4"><?= htmlspecialchars($req['request_type']) ?></td>
-              <td class="px-6 py-4 font-medium text-gray-700"><?= htmlspecialchars($req['status']) ?></td>
-              <td class="px-6 py-4"><?= htmlspecialchars($req['date_requested']) ?></td>
-              <td class="px-6 py-4">
-                <?php if($req['status'] === 'Pending'): ?>
-                  <div class="flex flex-wrap gap-2">
-                    <form method="POST" class="flex gap-2">
-                      <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
-                      <input type="hidden" name="status" value="Approved">
-                      <input type="text" name="remarks" placeholder="Issue (optional)" class="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-green-400">
-                      <button type="submit" name="update_status" class="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition duration-200">Approve</button>
-                    </form>
-                    <form method="POST" class="flex gap-2">
-                      <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
-                      <input type="hidden" name="status" value="Rejected">
-                      <input type="text" name="remarks" placeholder="Reason (optional)" class="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-red-400">
-                      <button type="submit" name="update_status" class="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition duration-200">Disapprove</button>
-                    </form>
-                  </div>
-                <?php elseif(in_array($req['status'], ['Approved', 'Ready for Pickup', 'Done'])): ?>
-                  <button class="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition duration-200"
-                          onclick="printCertificate(<?= $req['id'] ?>, '<?= htmlspecialchars($req['template_name']) ?>')">Generate</button>
-                <?php else: ?>
-                  <span class="text-gray-400"><?= htmlspecialchars($req['status']) ?></span>
-                <?php endif; ?>
-              </td>
-            </tr>
-            <?php endwhile; ?>
-            <tr id="noResultsRow" class="hidden text-center text-gray-400">
-              <td colspan="7">No records found.</td>
-            </tr>
+                    <td class="px-6 py-4"><?= htmlspecialchars($req['first_name'] . ' ' . $req['last_name']) ?></td>
+                    <td class="px-6 py-4"><?= htmlspecialchars($req['template_name']) ?></td>
+                    <td class="px-6 py-4"><?= htmlspecialchars($req['purpose']) ?></td>
+                    <td class="px-6 py-4"><?= htmlspecialchars($req['request_type']) ?></td>
+                    <td class="px-6 py-4 font-medium text-gray-700"><?= htmlspecialchars($req['status']) ?></td>
+                    <td class="px-6 py-4"><?= htmlspecialchars($req['date_requested']) ?></td>
+                    <td class="px-6 py-4">
+                        <?php if($req['supporting_doc']): ?>
+                            <span class="view-doc text-blue-500 hover:underline cursor-pointer"
+                                  data-doc="<?= '../../resident/uploads/valid_ids/' . $req['supporting_doc'] ?>">
+                                  Click to View
+                            </span>
+                        <?php else: ?>
+                            <span class="text-gray-400">No document</span>
+                        <?php endif; ?>
+                    </td>
+
+                    <td class="px-6 py-4">
+                      <?php if($req['status'] === 'Pending'): ?>
+                        <div class="flex flex-wrap gap-2">
+                          <form method="POST" class="flex gap-2">
+                            <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
+                            <input type="hidden" name="status" value="Approved">
+                            <input type="text" name="remarks" placeholder="Issue (optional)" class="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-green-400">
+                            <button type="submit" name="update_status" class="bg-green-500 text-white px-3 py-1 rounded-lg hover:bg-green-600 transition duration-200">Approve</button>
+                          </form>
+                          <form method="POST" class="flex gap-2">
+                            <input type="hidden" name="request_id" value="<?= $req['id'] ?>">
+                            <input type="hidden" name="status" value="Rejected">
+                            <input type="text" name="remarks" placeholder="Reason (optional)" class="border rounded px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-red-400">
+                            <button type="submit" name="update_status" class="bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600 transition duration-200">Disapprove</button>
+                          </form>
+                        </div>
+                      <?php elseif(in_array($req['status'], ['Approved', 'Ready for Pickup', 'Done'])): ?>
+                        <button class="bg-emerald-500 text-white px-4 py-2 rounded-lg hover:bg-emerald-600 transition duration-200"
+                                onclick="printCertificate(<?= $req['id'] ?>, '<?= htmlspecialchars($req['template_name']) ?>')">Generate</button>
+                      <?php else: ?>
+                        <span class="text-gray-400"><?= htmlspecialchars($req['status']) ?></span>
+                      <?php endif; ?>
+                    </td>
+                  </tr>
+                  <?php endwhile; ?>
+              <?php else: ?>
+                  <tr class="text-center text-gray-400">
+                      <td colspan="7">No certificate requests found.</td>
+                  </tr>
+              <?php endif; ?>
           </tbody>
+
         </table>
 
         <div class="flex justify-center mt-6 space-x-2">
@@ -363,31 +378,34 @@ $systemLogoPath = '../' . $systemLogo;
 
 
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
-<script src="certificate_requ.js"></script>
+<script src="cert.js"></script>
 <script>
 
-  
-  document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('requestModal');
     const closeModalBtn = document.getElementById('closeModal');
 
-    const modalResident = document.getElementById('modalResident');
-    const modalBirthdate = document.getElementById('modalBirthdate');
-    const modalAddress = document.getElementById('modalAddress');
     const modalDocPreview = document.getElementById('modalDocPreview');
     const noDocText = document.getElementById('noDocText');
 
-    document.querySelectorAll('.pendingRow').forEach(row => {
-        row.addEventListener('click', () => {
-            modalResident.textContent = row.dataset.resident;
-            modalBirthdate.textContent = row.dataset.birthdate;
-            modalAddress.textContent = row.dataset.address;
+    // Close button
+    closeModalBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+    });
+
+    // Close when clicking outside modal content
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) modal.classList.add('hidden');
+    });
+
+    // View doc click
+    document.querySelectorAll('.view-doc').forEach(el => {
+        el.addEventListener('click', () => {
+            const docUrl = el.dataset.doc;
             modalDocPreview.innerHTML = '';
 
-            if(row.dataset.doc) {
-                const docUrl = row.dataset.doc;
+            if(docUrl) {
                 const ext = docUrl.split('.').pop().toLowerCase();
-
                 if(['jpg','jpeg','png','gif'].includes(ext)) {
                     const img = document.createElement('img');
                     img.src = docUrl;
@@ -414,14 +432,6 @@ $systemLogoPath = '../' . $systemLogo;
 
             modal.classList.remove('hidden');
         });
-    });
-
-    closeModalBtn.addEventListener('click', () => {
-        modal.classList.add('hidden');
-    });
-
-    modal.addEventListener('click', (e) => {
-        if(e.target === modal) modal.classList.add('hidden');
     });
 });
 

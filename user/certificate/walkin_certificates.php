@@ -152,7 +152,10 @@ $systemLogoPath = '../' . $systemLogo;
 <div class="flex h-screen overflow-hidden">
 <aside id="sidebar" class="w-64 bg-gradient-to-b from-blue-500 to-blue-700 text-white flex flex-col shadow-xl transition-all duration-300 h-screen">
     <div class="flex items-center justify-between p-4 border-b border-white/20">
-        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogoPath) ?>" alt="Barangay Logo" class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white transition-all">
+        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogoPath) ?>"
+     alt="Barangay Logo"
+     class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white bg-white p-1 transition-all">
+
             <span class="font-semibold text-lg sidebar-text"><?= htmlspecialchars($barangayName) ?></span>
         </div>
         <button id="toggleSidebar" class="material-icons cursor-pointer text-2xl">chevron_left</button>
@@ -475,7 +478,6 @@ $(document).ready(function() {
 
 function printCertificate(requestId, templateName) {
     let printFile = "";
-
     switch(templateName) {
         case "Barangay Certification":
             printFile = "print_certificate_barangay.php";
@@ -489,10 +491,27 @@ function printCertificate(requestId, templateName) {
         case "Construction Permit":
             printFile = "print_construction.php";
             break;
+        case "Maynilad Application":
+            printFile = "print_maynilad.php";
+            break;
+        case "Good Moral Certificate":
+            printFile = "print_moral.php";
+            break;
+        case "Certificate of Indigency":
+            printFile = "print_indigency.php";
+            break;
+        case "Residency Certificate":
+            printFile = "print_residency.php";
+            break;
         default:
             alert("Unknown certificate type.");
             return;
     }
+
+    window.open(printFile + "?id=" + requestId, "_blank");
+}
+
+
 
     const iframe = document.getElementById('printFrame');
     const loading = document.getElementById('loadingOverlay');

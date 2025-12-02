@@ -63,7 +63,10 @@ $systemLogoPath = '../' . $systemLogo;
 <div class="flex h-screen">
 <aside id="sidebar" class="w-64 bg-gradient-to-b from-blue-500 to-blue-700 text-white flex flex-col shadow-xl transition-all duration-300 h-screen">
     <div class="flex items-center justify-between p-4 border-b border-white/20">
-        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogoPath) ?>" alt="Barangay Logo" class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white transition-all">
+        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogoPath) ?>"
+     alt="Barangay Logo"
+     class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white bg-white p-1 transition-all">
+
             <span class="font-semibold text-lg sidebar-text"><?= htmlspecialchars($barangayName) ?></span>
         </div>
         <button id="toggleSidebar" class="material-icons cursor-pointer text-2xl">chevron_left</button>
@@ -191,7 +194,7 @@ $systemLogoPath = '../' . $systemLogo;
                 </div>
                 <div>
                     <label class="block font-semibold mb-2 text-gray-700">Resident</label>
-                    <input type="text" id="residentInput" placeholder="Type resident name..." required class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
+                    <input type="text" name="resident" id="residentInput" placeholder="Type resident name..." required class="w-full border px-3 py-2 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400">
                     <ul id="residentList" class="border mt-1 max-h-40 overflow-y-auto hidden bg-white absolute w-full z-10 shadow rounded-lg"></ul>
                 </div>
                 <div>
@@ -281,16 +284,13 @@ $systemLogoPath = '../' . $systemLogo;
 
     <!-- View Official Modal -->
     <div id="officialModalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40"></div>
-    <div id="officialModal" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div id="officialModal" class="fixed inset-0 hidden z-50 flex items-center justify-center p-4">
         <div class="bg-white shadow-2xl w-full max-w-2xl p-6 rounded-2xl relative overflow-hidden">
-            <button onclick="closeModal()" 
-                    class="absolute top-4 right-4 material-icons text-gray-600 hover:text-gray-800 cursor-pointer text-3xl transition">
-                close
-            </button>
+            <button onclick="closeModal()" class="absolute top-4 right-4 material-icons text-gray-600 hover:text-gray-800 cursor-pointer text-3xl transition">close</button>
+
             <div id="viewContent" class="space-y-6">
                 <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
-                    <div id="modalPhoto" 
-                         class="h-40 w-40 md:w-40 md:h-40 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0 shadow-inner">
+                    <div id="modalPhoto" class="h-40 w-40 md:w-40 md:h-40 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0 shadow-inner">
                         <img id="modalPhotoImg" class="w-full h-full object-cover" src="" alt="Official Photo">
                     </div>
                     <div class="flex-1 text-center md:text-left">
@@ -300,12 +300,11 @@ $systemLogoPath = '../' . $systemLogo;
                         <p id="modalTerm" class="text-sm italic text-gray-500"></p>
                     </div>
                 </div>
+                <?php if($role === 'admin'): ?>
                 <div class="flex justify-center md:justify-end">
-                    <button onclick="switchToEdit()" 
-                            class="bg-yellow-400 hover:bg-yellow-500 text-white px-5 py-2 rounded-lg shadow font-medium text-sm transition">
-                        Edit
-                    </button>
+                    <button onclick="switchToEdit()" class="bg-yellow-400 hover:bg-yellow-500 text-white px-5 py-2 rounded-lg shadow font-medium text-sm transition">Edit</button>
                 </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
@@ -313,12 +312,10 @@ $systemLogoPath = '../' . $systemLogo;
     <!-- Officials Grid -->
     <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mb-6 auto-rows-fr">
         <?php if ($result->num_rows > 0): ?>
-        <?php while($o = $result->fetch_assoc()): ?>
-            <div class="bg-white shadow-md rounded-2xl overflow-hidden cursor-pointer hover:shadow-xl transition flex flex-col items-center"
-                onclick='openModal(<?= json_encode($o) ?>)'>
+            <?php while($o = $result->fetch_assoc()): ?>
+            <div class="bg-white shadow-md rounded-2xl overflow-hidden cursor-pointer hover:shadow-xl transition flex flex-col items-center" onclick='openModal(<?= json_encode($o) ?>)'>
                 <div class="w-full h-60 bg-gray-100 flex items-center justify-center overflow-hidden">
-                    <img src="../uploads/<?= $o['photo'] && trim($o['photo']) !== '' ? htmlspecialchars($o['photo']) : 'official.jpg' ?>" 
-                        class="h-full w-auto object-cover">
+                    <img src="../uploads/<?= $o['photo'] && trim($o['photo']) !== '' ? htmlspecialchars($o['photo']) : 'official.jpg' ?>" class="h-full w-auto object-cover">
                 </div>
                 <div class="p-3 text-center w-full">
                     <h2 class="text-sm font-semibold truncate text-gray-800"><?= htmlspecialchars($o['first_name'].' '.$o['last_name']) ?></h2>
@@ -326,57 +323,14 @@ $systemLogoPath = '../' . $systemLogo;
                     <?php if(!empty($o['department'])): ?>
                     <p class="text-xs text-gray-500 truncate"><strong>Department:</strong> <?= htmlspecialchars($o['department']) ?></p>
                     <?php endif; ?>
-                   <p class="text-xs text-gray-500 mt-1">
-                        <?= date('M d, Y', strtotime($o['start_date'])) ?> – <?= date('M d, Y', strtotime($o['end_date'])) ?>
-                    </p>
-
+                    <p class="text-xs text-gray-500 mt-1"><?= date('M d, Y', strtotime($o['start_date'])) ?> – <?= date('M d, Y', strtotime($o['end_date'])) ?></p>
                 </div>
             </div>
-        <?php endwhile; ?>
+            <?php endwhile; ?>
         <?php endif; ?>
     </div>
 
 </main>
-  </div>
-</div>
-<!-- Modal Backdrop -->
-<div id="officialModalBackdrop" class="fixed inset-0 bg-black bg-opacity-50 hidden z-40"></div>
-
-<!-- Official Modal -->
-<div id="officialModal" class="fixed inset-0 hidden z-50 flex items-center justify-center p-4">
-    <div class="bg-white shadow-2xl w-full max-w-2xl p-6 rounded-2xl relative overflow-hidden">
-        <button onclick="closeModal()" 
-                class="absolute top-4 right-4 material-icons text-gray-600 hover:text-gray-800 cursor-pointer text-3xl transition">
-            close
-        </button>
-
-        <div id="viewContent" class="space-y-6">
-            <div class="flex flex-col md:flex-row items-center md:items-start gap-6">
-                <div id="modalPhoto" 
-                    class="h-40 w-40 md:w-40 md:h-40 bg-gray-200 rounded-xl overflow-hidden flex-shrink-0 shadow-inner">
-                    <img id="modalPhotoImg" class="w-full h-full object-cover" src="" alt="Official Photo">
-                </div>
-
-                <div class="flex-1 text-center md:text-left">
-                    <h2 id="modalName" class="text-2xl font-bold text-gray-800 mb-2"></h2>
-                    <p id="modalPosition" class="text-lg text-gray-700 mb-1"></p>
-                    <p id="modalDept" class="text-base text-gray-600 mb-1"></p>
-                    <p id="modalTerm" class="text-sm italic text-gray-500"></p>
-                </div>
-            </div>
-
-            <?php if($role === 'admin'): ?>
-            <div class="flex justify-center md:justify-end">
-                <button onclick="switchToEdit()" 
-                        class="bg-yellow-400 hover:bg-yellow-500 text-white px-5 py-2 rounded-lg shadow font-medium text-sm transition">
-                    Edit
-                </button>
-            </div>
-            <?php endif; ?>
-        </div>
-    </div>
-</div>
-
 
 
 <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50"> 
@@ -387,7 +341,6 @@ $systemLogoPath = '../' . $systemLogo;
         <button id="okSuccessBtn" class="mt-4 bg-emerald-500 text-white px-4 py-2 rounded hover:bg-emerald-600">OK</button>
     </div>
 </div>
-
 <script>
 window.residentsList = <?= json_encode($residentsList) ?>;
 window.assignedResidents = <?= json_encode($assignedResidentsIds) ?>;
@@ -403,6 +356,7 @@ let currentOfficial = {};
 const residentsList = window.residentsList || [];
 const assignedResidents = window.assignedResidents || [];
 
+// Sidebar toggle
 const sidebar = document.getElementById('sidebar');
 const toggleBtn = document.getElementById('toggleSidebar');
 toggleBtn.onclick = () => {
@@ -411,6 +365,7 @@ toggleBtn.onclick = () => {
     toggleBtn.textContent = icon === 'chevron_left' ? 'chevron_right' : 'chevron_left';
 };
 
+// Session message modal
 document.addEventListener('DOMContentLoaded', function() {
     if (window.sessionMessage) {
         const modal = document.getElementById('successModal');
@@ -445,6 +400,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// Resident autocomplete for Add form
 const input = document.getElementById('residentInput');
 const list = document.getElementById('residentList');
 
@@ -506,160 +462,113 @@ if(input && list){
             input.removeAttribute('name');
         }
     });
-
 }
 
+// Panel modals
 function openAddPanel() {
-    const addPanel = document.getElementById('addPanel');
-    const addBackdrop = document.getElementById('addPanelBackdrop');
-    const editPanel = document.getElementById('editPanel');
-    const editBackdrop = document.getElementById('editPanelBackdrop');
-
-    if(editPanel) editPanel.classList.add('hidden');
-    if(editBackdrop) editBackdrop.classList.add('hidden');
-
-    if(addPanel) addPanel.classList.remove('hidden');
-    if(addBackdrop) addBackdrop.classList.remove('hidden');
+    closeEditPanel();
+    document.getElementById('addPanel').classList.remove('hidden');
+    document.getElementById('addPanelBackdrop').classList.remove('hidden');
 }
-
 function closeAddPanel() {
-    const addPanel = document.getElementById('addPanel');
-    const addBackdrop = document.getElementById('addPanelBackdrop');
-
-    if(addPanel) addPanel.classList.add('hidden');
-    if(addBackdrop) addBackdrop.classList.add('hidden');
+    document.getElementById('addPanel').classList.add('hidden');
+    document.getElementById('addPanelBackdrop').classList.add('hidden');
 }
-
 function openEditPanel() {
-    const addPanel = document.getElementById('addPanel');
-    const addBackdrop = document.getElementById('addPanelBackdrop');
-    const editPanel = document.getElementById('editPanel');
-    const editBackdrop = document.getElementById('editPanelBackdrop');
-
-    if(addPanel) addPanel.classList.add('hidden');
-    if(addBackdrop) addBackdrop.classList.add('hidden');
-
-    if(editPanel) editPanel.classList.remove('hidden');
-    if(editBackdrop) editBackdrop.classList.remove('hidden');
+    closeAddPanel();
+    document.getElementById('editPanel').classList.remove('hidden');
+    document.getElementById('editPanelBackdrop').classList.remove('hidden');
 }
-
 function closeEditPanel() {
-    const editPanel = document.getElementById('editPanel');
-    const editBackdrop = document.getElementById('editPanelBackdrop');
-
-    if(editPanel) editPanel.classList.add('hidden');
-    if(editBackdrop) editBackdrop.classList.add('hidden');
+    document.getElementById('editPanel').classList.add('hidden');
+    document.getElementById('editPanelBackdrop').classList.add('hidden');
 }
 
+// Format date
 function formatDate(dateStr){
     const d = new Date(dateStr);
     const options = { year: 'numeric', month: 'short', day: 'numeric' };
     return d.toLocaleDateString('en-US', options);
 }
 
+// View modal
 function openModal(o) {
     currentOfficial = o;
     document.getElementById("modalPhoto").innerHTML = `<img src="../uploads/${o.photo && o.photo.trim() !== '' ? o.photo : 'official.jpg'}" class="object-cover h-full w-full rounded">`;
     document.getElementById("modalName").textContent = o.first_name + ' ' + o.last_name;
     document.getElementById("modalPosition").textContent = "Position: " + o.position_name;
-
     const start = formatDate(o.start_date);
     const end = formatDate(o.end_date);
     document.getElementById("modalTerm").textContent = `Term: ${start} – ${end}`;
-
     document.getElementById("officialModal").classList.remove("hidden");
     document.getElementById("officialModal").classList.add("flex");
     document.getElementById("officialModalBackdrop").classList.remove("hidden");
 }
-
-
 function closeModal() {
     document.getElementById("officialModal").classList.add("hidden");
     document.getElementById("officialModal").classList.remove("flex");
     document.getElementById("officialModalBackdrop").classList.add("hidden");
 }
 
+// Switch view → edit
 function switchToEdit() {
-    closeModal(); // close the view modal
+    closeModal();
+    openEditPanel();
 
-    const editPanel = document.getElementById("editPanel");
-    const editBackdrop = document.getElementById("editPanelBackdrop");
-
-    if(editPanel) editPanel.classList.remove("hidden");
-    if(editBackdrop) editBackdrop.classList.remove("hidden");
-
-    const editOfficialId = document.getElementById("editOfficialId");
-    if(editOfficialId) editOfficialId.value = currentOfficial.id || currentOfficial.official_id;
-
-    const editPhotoPreview = document.getElementById("editPhotoPreview");
-    if(editPhotoPreview) editPhotoPreview.src = currentOfficial.photo ? `../uploads/${currentOfficial.photo}` : '';
-
-    const editStart = document.getElementById("editStart"); if(editStart) editStart.value = currentOfficial.start_date;
-    const editEnd = document.getElementById("editEnd"); if(editEnd) editEnd.value = currentOfficial.end_date;
+    document.getElementById("editOfficialId").value = currentOfficial.id || currentOfficial.official_id;
+    document.getElementById("editPhotoPreview").src = currentOfficial.photo ? `../uploads/${currentOfficial.photo}` : '';
+    document.getElementById("editStart").value = currentOfficial.start_date;
+    document.getElementById("editEnd").value = currentOfficial.end_date;
 
     const selectResident = document.getElementById("editResident");
-    if(selectResident){
-        selectResident.innerHTML = "";
-        residentsList.forEach(res => {
-            const isAssigned = assignedResidents.includes(res.resident_id) && res.resident_id != currentOfficial.resident_id;
-            const option = document.createElement("option");
-            option.value = res.resident_id;
-            option.text = res.first_name + " " + res.last_name + (isAssigned ? " (Already in Position)" : "");
-            option.disabled = isAssigned;
-            if(res.resident_id == currentOfficial.resident_id) option.selected = true;
-            selectResident.appendChild(option);
-        });
-    }
+    selectResident.innerHTML = "";
+    residentsList.forEach(res => {
+        const isAssigned = assignedResidents.includes(res.resident_id) && res.resident_id != currentOfficial.resident_id;
+        const option = document.createElement("option");
+        option.value = res.resident_id;
+        option.text = res.first_name + " " + res.last_name + (isAssigned ? " (Already in Position)" : "");
+        option.disabled = isAssigned;
+        if(res.resident_id == currentOfficial.resident_id) option.selected = true;
+        selectResident.appendChild(option);
+    });
 
     const selectPosition = document.getElementById("editPosition");
-    if(selectPosition){
-        selectPosition.innerHTML = "";
-        window.positionsList.forEach(p => {
-            const count = window.positionCounts[p.id] || 0;
-            const disabled = (count >= p.limit);
-            const opt = document.createElement("option");
-            opt.value = p.id;
-            opt.text = p.position_name + (disabled ? " (Full)" : "");
-            opt.disabled = disabled;
-            if(opt.value == currentOfficial.position_id) opt.selected = true;
-            selectPosition.appendChild(opt);
-        });
+    selectPosition.innerHTML = "";
+    window.positionsList.forEach(p => {
+        const count = window.positionCounts[p.id] || 0;
+        const disabled = (count >= p.limit);
+        const opt = document.createElement("option");
+        opt.value = p.id;
+        opt.text = p.position_name + (disabled ? " (Full)" : "");
+        opt.disabled = disabled;
+        if(opt.value == currentOfficial.position_id) opt.selected = true;
+        selectPosition.appendChild(opt);
+    });
+}
+
+// Photo previews
+document.getElementById("editPhotoInput")?.addEventListener("change", function() {
+    const file = this.files[0];
+    const preview = document.getElementById("editPhotoPreview");
+    if(file){
+        const reader = new FileReader();
+        reader.onload = e => preview.src = e.target.result;
+        reader.readAsDataURL(file);
+    } else {
+        preview.src = currentOfficial.photo ? `../uploads/${currentOfficial.photo}` : '';
     }
-}
-
-function switchToView(){ const editContent = document.getElementById("editContent"); if(editContent) editContent.classList.add("hidden"); const viewContent = document.getElementById("viewContent"); if(viewContent) viewContent.classList.remove("hidden"); }
-
-const editPhotoInput = document.getElementById("editPhotoInput");
-const editPhotoPreview = document.getElementById("editPhotoPreview");
-if(editPhotoInput){
-    editPhotoInput.addEventListener("change", function() {
-        const file = this.files[0];
-        if(file){
-            const reader = new FileReader();
-            reader.onload = function(e){ if(editPhotoPreview) editPhotoPreview.src = e.target.result; }
-            reader.readAsDataURL(file);
-        } else { if(editPhotoPreview) editPhotoPreview.src = currentOfficial.photo ? `../uploads/${currentOfficial.photo}` : ''; }
-    });
-}
-
-const addPhotoInput = document.getElementById('addPhotoInput');
-const addPhotoPreview = document.getElementById('addPhotoPreview');
-if(addPhotoInput){
-    addPhotoInput.addEventListener('change', function() {
-        const file = this.files[0];
-        if(file){
-            const reader = new FileReader();
-            reader.onload = function(e){ addPhotoPreview.src = e.target.result; }
-            reader.readAsDataURL(file);
-        } else {
-            addPhotoPreview.src = '../uploads/default-avatar.jpg';
-        }
-    });
-}
-
-// Add Modal
-function openAddModal(){ const addModal = document.getElementById('addOfficialModal'); if(addModal){ addModal.classList.remove('hidden'); addModal.classList.add('flex'); } }
-function closeAddModal(){ const addModal = document.getElementById('addOfficialModal'); if(addModal){ addModal.classList.add('hidden'); addModal.classList.remove('flex'); } }
+});
+document.getElementById("addPhotoInput")?.addEventListener("change", function() {
+    const file = this.files[0];
+    const preview = document.getElementById("addPhotoPreview");
+    if(file){
+        const reader = new FileReader();
+        reader.onload = e => preview.src = e.target.result;
+        reader.readAsDataURL(file);
+    } else {
+        preview.src = '../uploads/default-avatar.jpg';
+    }
+});
 </script>
 
 

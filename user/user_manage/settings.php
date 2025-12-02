@@ -58,7 +58,10 @@ $systemLogoPath = '../' . $systemLogo;
 <div class="flex h-screen">
 <aside id="sidebar" class="w-64 bg-gradient-to-b from-blue-500 to-blue-700 text-white flex flex-col shadow-xl transition-all duration-300 h-screen">
     <div class="flex items-center justify-between p-4 border-b border-white/20">
-        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogoPath) ?>" alt="Barangay Logo" class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white transition-all">
+        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogoPath) ?>"
+     alt="Barangay Logo"
+     class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white bg-white p-1 transition-all">
+
             <span class="font-semibold text-lg sidebar-text"><?= htmlspecialchars($barangayName) ?></span>
         </div>
         <button id="toggleSidebar" class="material-icons cursor-pointer text-2xl">chevron_left</button>
@@ -399,6 +402,13 @@ if(settingsForm){
       });
   });
 }
+const sidebar = document.getElementById('sidebar');
+const toggleBtn = document.getElementById('toggleSidebar');
+toggleBtn.onclick = () => {
+    sidebar.classList.toggle('sidebar-collapsed');
+    let icon = toggleBtn.textContent.trim();
+    toggleBtn.textContent = icon === 'chevron_left' ? 'chevron_right' : 'chevron_left';
+};
 
 // Hero image upload
 const heroUpload = document.getElementById('heroUpload');

@@ -65,6 +65,14 @@ window.printCertificate = function(requestId, certificateName) {
         url = `print_guardianship.php?id=${requestId}`;
     } else if (certificateName.includes('certification') || certificateName.includes('clearance')) {
         url = `print_certificate_barangay.php?id=${requestId}`;
+    } else if (certificateName.includes('maynilad')) {
+        url = `print_maynilad.php?id=${requestId}`;
+    } else if (certificateName.includes('moral')) {
+        url = `print_moral.php?id=${requestId}`;
+    } else if (certificateName.includes('indigency')) {
+        url = `print_indigency.php?id=${requestId}`;
+    } else if (certificateName.includes('residency')) {
+        url = `print_residency.php?id=${requestId}`;
     } else {
         alert('Certificate template not supported!');
         return;
@@ -78,4 +86,6 @@ window.printCertificate = function(requestId, certificateName) {
         printFrame.contentWindow.print();
     };
 };
+
+
 });

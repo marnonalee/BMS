@@ -16,6 +16,22 @@ $settings = $settingsQuery->fetch_assoc();
 $barangayName = $settings['barangay_name'] ?? 'Barangay Name';
 $systemLogo = $settings['system_logo'] ?? 'default-logo.png';
 $systemLogoPath = '../' . $systemLogo;
+$requestsQuery = $conn->query("
+    SELECT pur.*, r.first_name, r.last_name, r.resident_address
+    FROM profile_update_requests pur
+    LEFT JOIN residents r ON pur.resident_id = r.resident_id
+    WHERE pur.status = 'Pending' AND r.is_archived = 0
+    ORDER BY pur.created_at DESC
+");
+
+// New query to fetch approved requests
+$approvedRequestsQuery = $conn->query("
+    SELECT pur.*, r.first_name, r.last_name, r.resident_address
+    FROM profile_update_requests pur
+    LEFT JOIN residents r ON pur.resident_id = r.resident_id
+    WHERE pur.status = 'Approved' AND r.is_archived = 0
+    ORDER BY pur.created_at DESC
+");
 
 function logActivity($conn, $user_id, $action, $description = null) {
     $stmt = $conn->prepare("INSERT INTO log_activity (user_id, action, description, created_at) VALUES (?, ?, ?, NOW())");
@@ -93,7 +109,10 @@ if (isset($_POST['approve_request'])) {
             $stmt->execute();
         }
 
-        $conn->query("UPDATE profile_update_requests SET status='Approved' WHERE request_id='$request_id'");
+        $conn->query("UPDATE profile_update_requests 
+              SET status='Approved', updated_at=NOW() 
+              WHERE request_id='$request_id'");
+
 
         logActivity($conn, $user_id, 'Approve Profile Update', "Approved profile update request for $full_name");
         sendNotification($conn, $resident_id, "Ang iyong profile update request ay na-approve.", "Profile Update Approved");
@@ -144,7 +163,10 @@ $requestsQuery = $conn->query("
 <div class="flex h-screen">
 <aside id="sidebar" class="w-64 bg-gradient-to-b from-blue-500 to-blue-700 text-white flex flex-col shadow-xl transition-all duration-300 h-screen">
      <div class="flex items-center justify-between p-4 border-b border-white/20">
-        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogoPath) ?>" alt="Barangay Logo" class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white transition-all">
+        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogoPath) ?>"
+     alt="Barangay Logo"
+     class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white bg-white p-1 transition-all">
+
             <span class="font-semibold text-lg sidebar-text"><?= htmlspecialchars($barangayName) ?></span>
         </div>
         <button id="toggleSidebar" class="material-icons cursor-pointer text-2xl">chevron_left</button>
@@ -243,11 +265,12 @@ $requestsQuery = $conn->query("
  <header class="flex items-center justify-between bg-white shadow-md px-6 py-4 rounded-b-2xl flex-shrink-0 mb-6">
     <h2 class="text-2xl font-bold text-gray-700">Profile Update Request</h2>
 </header>
+<main class="flex-1 overflow-y-auto p-6 bg-gray-50">
+    <div class="max-w-7xl mx-auto space-y-8">
 
-<main class="flex-1 overflow-y-auto p-6 bg-gray-100">
-    <div class="max-w-7xl mx-auto space-y-6">
-
+        <!-- Pending Requests -->
         <?php if($requestsQuery->num_rows > 0): ?>
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Pending Profile Update Requests</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <?php while($req = $requestsQuery->fetch_assoc()): ?>
                     <?php
@@ -282,7 +305,7 @@ $requestsQuery = $conn->query("
                         }
                     }
                     ?>
-                    <div class="bg-white p-5 rounded-2xl shadow-md hover:shadow-lg transition-shadow flex flex-col justify-between">
+                    <div class="bg-white p-6 rounded-2xl shadow-md hover:shadow-lg transition flex flex-col justify-between">
                         <div>
                             <h3 class="text-lg font-semibold text-gray-800"><?= htmlspecialchars($req['first_name'].' '.$req['last_name']) ?></h3>
                             <p class="text-gray-500 mt-1"><?= htmlspecialchars($req['resident_address']) ?></p>
@@ -293,7 +316,8 @@ $requestsQuery = $conn->query("
                             <button onclick="openModal('modal<?= $req['request_id'] ?>')" class="mt-4 w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">View Changes</button>
                         <?php endif; ?>
 
-                       <div id="modal<?= $req['request_id'] ?>" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+                        <!-- Modal -->
+                        <div id="modal<?= $req['request_id'] ?>" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
                             <div class="bg-white w-11/12 md:w-2/3 p-6 rounded-2xl max-h-[85vh] overflow-y-auto relative shadow-2xl flex flex-col gap-4">
                                 <button onclick="closeModal('modal<?= $req['request_id'] ?>')" class="absolute top-4 right-4 text-gray-500 hover:text-gray-800 text-3xl">&times;</button>
                                 <h3 class="text-2xl font-bold text-gray-800"><?= htmlspecialchars($req['first_name'].' '.$req['last_name']) ?></h3>
@@ -321,7 +345,6 @@ $requestsQuery = $conn->query("
                                     <?php endif; ?>
                                 </div>
 
-                                <!-- Approve/Reject Buttons -->
                                 <div class="mt-4 flex flex-col md:flex-row gap-2">
                                     <form method="POST" class="flex-1">
                                         <input type="hidden" name="request_id" value="<?= $req['request_id'] ?>">
@@ -334,16 +357,85 @@ $requestsQuery = $conn->query("
                                 </div>
                             </div>
                         </div>
-
-
                     </div>
                 <?php endwhile; ?>
             </div>
         <?php else: ?>
             <p class="text-gray-500 text-center py-12 text-lg">No pending profile update requests.</p>
         <?php endif; ?>
+
+        <!-- Approved Requests Table -->
+        <div class="bg-white p-6 rounded-2xl shadow-lg overflow-x-auto">
+            <h2 class="text-2xl font-semibold text-gray-800 mb-4">Approved Profile Update Requests</h2>
+            <table class="min-w-full divide-y divide-gray-200">
+                <thead class="bg-gray-100">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-gray-700 font-medium">Resident Name</th>
+                        <th class="px-4 py-3 text-left text-gray-700 font-medium">Address</th>
+                        <th class="px-4 py-3 text-left text-gray-700 font-medium">Requested Changes</th>
+                        <th class="px-4 py-3 text-left text-gray-700 font-medium">Requested On</th>
+                        <th class="px-4 py-3 text-left text-gray-700 font-medium">Approved On</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    <?php if($approvedRequestsQuery->num_rows > 0): ?>
+                        <?php while($req = $approvedRequestsQuery->fetch_assoc()): ?>
+                            <tr>
+                                <td class="px-4 py-3"><?= htmlspecialchars($req['first_name'].' '.$req['last_name']) ?></td>
+                                <td class="px-4 py-3"><?= htmlspecialchars($req['resident_address']) ?></td>
+                                <td class="px-4 py-3">
+                                    <?php
+                                    $residentQuery = $conn->prepare("SELECT * FROM residents WHERE resident_id = ?");
+                                    $residentQuery->bind_param("i", $req['resident_id']);
+                                    $residentQuery->execute();
+                                    $current = $residentQuery->get_result()->fetch_assoc();
+
+                                    $fields = [
+                                        'alias'=>'Alias',
+                                        'suffix'=>'Suffix',
+                                        'resident_address'=>'Address',
+                                        'birth_place'=>'Birth Place',
+                                        'street'=>'Street',
+                                        'citizenship'=>'Citizenship',
+                                        'voter_status'=>'Voter Status',
+                                        'employment_status'=>'Employment Status',
+                                        'contact_number'=>'Contact Number',
+                                        'religion'=>'Religion',
+                                        'profession_occupation'=>'Profession/Occupation',
+                                        'educational_attainment'=>'Education',
+                                        'education_details'=>'Education Details',
+                                        'is_family_head'=>'Family Head'
+                                    ];
+
+                                    $changes = [];
+                                    foreach($fields as $key=>$label){
+                                        $currentVal = $current[$key] ?? '';
+                                        $newVal = $req[$key] ?? '';
+                                        if($currentVal !== $newVal){
+                                            $changes[] = $label;
+                                        }
+                                    }
+
+                                    echo $changes ? implode(', ', $changes) : '-';
+                                    ?>
+                                </td>
+                                <td class="px-4 py-3"><?= date('F j, Y', strtotime($req['created_at'])) ?></td>
+                                <td class="px-4 py-3"><?= date('F j, Y', strtotime($req['updated_at'])) ?></td>
+                            </tr>
+                        <?php endwhile; ?>
+                    <?php else: ?>
+                        <tr>
+                            <td class="px-4 py-3 text-center text-gray-500" colspan="5">No approved profile update requests yet.</td>
+                        </tr>
+                    <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+
     </div>
 </main>
+
+
 
 </div>
 </div>

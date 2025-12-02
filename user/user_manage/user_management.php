@@ -58,8 +58,15 @@ if(isset($_POST['add_user'])){
         $stmt = $conn->prepare("INSERT INTO users (resident_id, username, email, password, role, status, email_verified, is_approved, valid_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->bind_param("issssssss", $resident_id, $username, $email, $password, $role_new, $status, $email_verified, $is_approved, $valid_id_path);
         if($stmt->execute()){
+            $new_user_id = $stmt->insert_id;
             $stmt->close();
             $successMsg = "User added successfully!";
+            if($resident_id){
+                $updateResident = $conn->prepare("UPDATE residents SET user_id = ? WHERE resident_id = ? AND (user_id IS NULL OR user_id = 0)");
+                $updateResident->bind_param("ii", $new_user_id, $resident_id);
+                $updateResident->execute();
+                $updateResident->close();
+            }
             $emailResult = sendUserEmail($email, $username, $rawPassword);
             if($emailResult !== true){
                 $errorMsg = "User added but email could not be sent: $emailResult";
@@ -68,7 +75,6 @@ if(isset($_POST['add_user'])){
     }
     $checkStmt->close();
 }
-
 
 if(isset($_POST['update_user'])){
     $user_id_edit = $_POST['user_id'];
@@ -96,6 +102,14 @@ if(isset($_POST['update_user'])){
 
     $stmt->execute();
     $stmt->close();
+
+    if($resident_id){
+        $updateResident = $conn->prepare("UPDATE residents SET user_id = ? WHERE resident_id = ? AND (user_id IS NULL OR user_id = 0)");
+        $updateResident->bind_param("ii", $user_id_edit, $resident_id);
+        $updateResident->execute();
+        $updateResident->close();
+    }
+
     $successMsg = "User updated successfully!";
 }
 
@@ -151,7 +165,6 @@ $systemLogo = $settings['system_logo'] ?? 'default-logo.png';
 $systemLogoPath = '../' . $systemLogo;
 ?>
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -167,7 +180,10 @@ $systemLogoPath = '../' . $systemLogo;
 <div class="flex h-screen">
 <aside id="sidebar" class="w-64 bg-gradient-to-b from-blue-500 to-blue-700 text-white flex flex-col shadow-xl transition-all duration-300 h-screen">
     <div class="flex items-center justify-between p-4 border-b border-white/20">
-        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogoPath) ?>" alt="Barangay Logo" class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white transition-all">
+        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogoPath) ?>"
+     alt="Barangay Logo"
+     class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white bg-white p-1 transition-all">
+
             <span class="font-semibold text-lg sidebar-text"><?= htmlspecialchars($barangayName) ?></span>
         </div>
         <button id="toggleSidebar" class="material-icons cursor-pointer text-2xl">chevron_left</button>
@@ -264,6 +280,8 @@ $systemLogoPath = '../' . $systemLogo;
     </a>
   </nav>
 </aside>
+
+
 <div class="flex-1 flex flex-col overflow-hidden bg-gray-50">
   <header class="flex items-center justify-between bg-white shadow-md px-6 py-4 rounded-b-2xl mb-6">
     <h2 class="text-2xl font-bold text-gray-800">Users</h2>
@@ -280,67 +298,124 @@ $systemLogoPath = '../' . $systemLogo;
   </header>
 
 <main class="flex-1 overflow-y-auto p-6">
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" id="userGrid">
-    <?php while($u = $usersQuery->fetch_assoc()): ?>
-      <div class="bg-white rounded-xl shadow-md hover:shadow-xl transition p-5 flex flex-col items-center text-center border border-gray-100">
-        <div class="bg-green-100 text-green-600 rounded-full p-4 shadow-inner">
-          <span class="material-icons text-4xl">person</span>
-        </div>
-        <h3 class="mt-3 font-semibold text-gray-800 text-lg truncate"><?= htmlspecialchars($u['username']) ?></h3>
-        <p class="text-gray-500 text-sm truncate"><?= htmlspecialchars($u['email']) ?></p>
-        
-        <div class="flex mt-2 gap-2 text-sm justify-center">
-          <span class="font-medium text-gray-700">Role:</span>
-          <span><?= $u['role']=='resident'?'Resident User':htmlspecialchars($u['role']) ?></span>
-        </div>
-        
-        <div class="flex mt-1 gap-2 items-center text-sm justify-center">
-          <span class="font-medium text-gray-700">Status:</span>
-          <span class="flex items-center gap-1">
-            <span class="w-3 h-3 rounded-full <?= $u['status']=='Active' ? 'bg-green-500' : 'bg-red-500' ?>"></span>
-            <span class="<?= $u['status']=='Active' ? 'text-green-600' : 'text-red-600' ?> font-medium"><?= htmlspecialchars($u['status']) ?></span>
-          </span>
-        </div>
 
-        <div class="flex mt-1 gap-2 items-center text-sm justify-center">
-          <span class="font-medium text-gray-700">Approved:</span>
-          <span class="<?= $u['is_approved']==1 ? 'text-green-600' : 'text-red-600' ?> font-medium"><?= $u['is_approved']==1 ? 'Yes' : 'No' ?></span>
-        </div>
+  <div class="bg-white p-6 rounded-2xl shadow-lg overflow-x-auto">
 
-        <div class="mt-2 text-sm">
-          <?php if(!empty($u['valid_id'])): ?>
-            <button class="viewIdBtn text-blue-600 hover:underline" data-id="<?= htmlspecialchars($u['valid_id']) ?>">View Valid ID</button>
-          <?php else: ?>
-            <span class="text-red-500">No ID uploaded</span>
+    <!-- SHOW ENTRIES -->
+    <div class="flex items-center justify-between mb-4">
+      <div class="flex items-center gap-2">
+        <span class="text-sm text-gray-700">Show</span>
+        <select id="showEntries" class="border border-gray-300 rounded-lg px-2 py-1 text-sm">
+          <option value="5">5</option>
+          <option value="10" selected>10</option>
+          <option value="25">25</option>
+          <option value="50">50</option>
+        </select>
+        <span class="text-sm text-gray-700">entries</span>
+      </div>
+    </div>
+
+    <table class="min-w-full divide-y divide-gray-200">
+
+      <thead class="bg-gray-100 text-gray-700 uppercase text-xs font-semibold tracking-wide">
+        <tr>
+          <th class="px-4 py-3 text-left">Username</th>
+          <th class="px-4 py-3 text-left">Email</th>
+          <th class="px-4 py-3 text-left">Role</th>
+          <th class="px-4 py-3 text-left">Status</th>
+          <th class="px-4 py-3 text-left">Approved</th>
+          <th class="px-4 py-3 text-left">Valid ID</th>
+          <?php if($role === 'admin'): ?>
+          <th class="px-4 py-3 text-center">Actions</th>
           <?php endif; ?>
-        </div>
+        </tr>
+      </thead>
 
-        <?php if($role === 'admin'): ?>
-          <div class="mt-3 flex flex-col gap-2 w-full">
-            <?php if($u['is_approved'] == 0): ?>
-              <div class="flex gap-2 justify-center">
+      <tbody id="userTable" class="text-sm">
+
+        <?php while($u = $usersQuery->fetch_assoc()): ?>
+        <tr class="border-b hover:bg-gray-50 transition">
+
+          <td class="px-4 py-3 font-medium text-gray-900">
+            <?= htmlspecialchars($u['username']) ?>
+          </td>
+
+          <td class="px-4 py-3 text-gray-700">
+            <?= htmlspecialchars($u['email']) ?>
+          </td>
+
+          <td class="px-4 py-3">
+            <?= $u['role']=='resident' ? 'Resident User' : htmlspecialchars($u['role']) ?>
+          </td>
+
+          <td class="px-4 py-3">
+            <span class="inline-flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full <?= $u['status']=='Active' ? 'bg-green-500' : 'bg-red-500' ?>"></span>
+              <span class="<?= $u['status']=='Active' ? 'text-green-600' : 'text-red-600' ?> font-medium">
+                <?= htmlspecialchars($u['status']) ?>
+              </span>
+            </span>
+          </td>
+
+          <td class="px-4 py-3 font-medium <?= $u['is_approved']==1 ? 'text-green-600' : 'text-red-600' ?>">
+            <?= $u['is_approved']==1 ? 'Yes' : 'No' ?>
+          </td>
+
+          <td class="px-4 py-3">
+            <?php if(!empty($u['valid_id'])): ?>
+              <button class="viewIdBtn text-blue-600 hover:underline" data-id="<?= htmlspecialchars($u['valid_id']) ?>">View</button>
+            <?php else: ?>
+              <span class="text-red-500">No ID</span>
+            <?php endif; ?>
+          </td>
+
+          <?php if($role === 'admin'): ?>
+          <td class="px-4 py-3 text-center">
+            <div class="flex justify-center gap-2">
+
+              <?php if($u['is_approved'] == 0): ?>
                 <form method="POST">
                   <input type="hidden" name="approve_user_id" value="<?= $u['id'] ?>">
-                  <button type="submit" class="bg-emerald-600 text-white px-3 py-1 rounded-lg hover:bg-emerald-700 text-sm transition w-full">Approve</button>
+                  <button type="submit" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg hover:bg-emerald-700 text-xs transition">Approve</button>
                 </form>
+
                 <form method="POST">
                   <input type="hidden" name="reject_user_id" value="<?= $u['id'] ?>">
-                  <button class="rejectBtn bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700 text-sm transition w-full" data-id="<?= $u['id'] ?>">Reject</button>
+                  <button type="button" class="rejectBtn bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 text-xs transition" data-id="<?= $u['id'] ?>">Reject</button>
                 </form>
-              </div>
-            <?php else: ?>
-              <div class="flex gap-2 justify-center">
-                <button class="editBtn bg-blue-600 text-white px-3 py-1 rounded-lg hover:bg-blue-700 text-sm transition" data-user='<?= json_encode($u) ?>'>Edit</button>
-                <button class="deleteBtn bg-red-600 text-white px-3 py-1 rounded-lg hover:bg-red-700 text-sm transition" data-id="<?= $u['id'] ?>">Delete</button>
-              </div>
-              <span class="<?= $u['is_approved']==1 ? 'text-green-600' : 'text-red-600' ?> text-xs font-medium mt-1"><?= $u['is_approved']==1 ? 'Approved' : 'Rejected' ?></span>
-            <?php endif; ?>
-          </div>
-        <?php endif; ?>
+
+              <?php else: ?>
+
+                <button class="editBtn bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 text-xs transition" data-user='<?= json_encode($u) ?>'>Edit</button>
+                <button class="deleteBtn bg-red-600 text-white px-3 py-1.5 rounded-lg hover:bg-red-700 text-xs transition" data-id="<?= $u['id'] ?>">Delete</button>
+
+              <?php endif; ?>
+
+            </div>
+          </td>
+          <?php endif; ?>
+
+        </tr>
+        <?php endwhile; ?>
+
+      </tbody>
+    </table>
+
+    <!-- PAGINATION -->
+    <div class="flex items-center justify-between mt-6">
+      <p id="paginationInfo" class="text-sm text-gray-600"></p>
+
+      <div class="flex gap-2">
+        <button id="prevPage" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm">Previous</button>
+        <button id="nextPage" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 text-sm">Next</button>
       </div>
-    <?php endwhile; ?>
+    </div>
+
   </div>
+
 </main>
+
+
 
   </div>
 </div>
@@ -521,7 +596,56 @@ toggleBtn.onclick = () => {
     let icon = toggleBtn.textContent.trim();
     toggleBtn.textContent = icon === 'chevron_left' ? 'chevron_right' : 'chevron_left';
 };
+
+document.getElementById("searchInput").addEventListener("keyup", function () {
+    const filter = this.value.toLowerCase();
+    const rows = document.querySelectorAll("#userTable tr");
+
+    rows.forEach(row => {
+        let text = row.innerText.toLowerCase();
+        row.style.display = text.includes(filter) ? "" : "none";
+    });
+});
+
+let tableRows = Array.from(document.querySelectorAll("#userTable tr"));
+let currentPage = 1;
+let entries = 10;
+
+function updateTable() {
+    let start = (currentPage - 1) * entries;
+    let end = start + entries;
+
+    tableRows.forEach((row, i) => {
+        row.style.display = (i >= start && i < end) ? "" : "none";
+    });
+
+    document.getElementById("paginationInfo").innerText =
+        `Showing ${Math.min(end, tableRows.length)} of ${tableRows.length} entries`;
+}
+
+document.getElementById("showEntries").addEventListener("change", function () {
+    entries = parseInt(this.value);
+    currentPage = 1;
+    updateTable();
+});
+
+document.getElementById("nextPage").addEventListener("click", function () {
+    if (currentPage * entries < tableRows.length) {
+        currentPage++;
+        updateTable();
+    }
+});
+
+document.getElementById("prevPage").addEventListener("click", function () {
+    if (currentPage > 1) {
+        currentPage--;
+        updateTable();
+    }
+});
+
+updateTable();
 </script>
+
 
 
 </body>

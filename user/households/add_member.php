@@ -6,6 +6,7 @@ $data = json_decode(file_get_contents("php://input"), true);
 
 $household_id = intval($data['household_id'] ?? 0);
 $resident_id = intval($data['resident_id'] ?? 0);
+$relationship = trim($data['relationship'] ?? '');
 
 $response = ['success' => false, 'message' => 'Something went wrong.'];
 
@@ -27,15 +28,15 @@ if($household_id && $resident_id){
             $resident_address = $head['resident_address'];
             $street = $head['street'];
 
-            $stmt = $conn->prepare("UPDATE residents SET household_id = ?, resident_address = ?, street = ? WHERE resident_id = ?");
-            $stmt->bind_param("sssi", $household_id, $resident_address, $street, $resident_id);
+            $stmt = $conn->prepare("UPDATE residents SET household_id = ?, resident_address = ?, street = ?, relationship = ? WHERE resident_id = ?");
+            $stmt->bind_param("ssssi", $household_id, $resident_address, $street, $relationship, $resident_id);
             if($stmt->execute()){
                 $response['success'] = true;
-                $response['message'] = "Member added successfully and address updated!";
+                $response['message'] = "Member added successfully!";
 
                 $user_id = $_SESSION['user_id'] ?? 0;
                 $action = "Add Household Member";
-                $description = "Added resident_id $resident_id to household_id $household_id";
+                $description = "Added resident_id $resident_id to household_id $household_id with relationship '$relationship'";
                 $logStmt = $conn->prepare("INSERT INTO log_activity (user_id, action, description) VALUES (?,?,?)");
                 $logStmt->bind_param("iss", $user_id, $action, $description);
                 $logStmt->execute();

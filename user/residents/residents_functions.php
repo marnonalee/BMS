@@ -62,7 +62,8 @@ if(isset($_POST['update_resident'])){
         'is_pwd' => checkboxValue('is_pwd'),
         'is_4ps' => checkboxValue('is_4ps'),
         'is_solo_parent' => checkboxValue('is_solo_parent'),
-        'is_family_head' => checkboxValue('is_family_head')
+        'is_family_head' => checkboxValue('is_family_head'),
+        'years_lived' => $_POST['years_lived'] ?? 0
     ];
 
     $changed = false;
@@ -82,16 +83,16 @@ if(isset($_POST['update_resident'])){
                 birthdate=?, age=?, sex=?, civil_status=?, resident_address=?,
                 street=?, voter_status=?, employment_status=?, contact_number=?, email_address=?,
                 religion=?, profession_occupation=?, educational_attainment=?, education_details=?, school_status=?,
-                philsys_card_no=?, birth_place=?, citizenship=?, is_senior=?, is_pwd=?, is_4ps=?, is_solo_parent=?, is_family_head=?
+                philsys_card_no=?, birth_place=?, citizenship=?, is_senior=?, is_pwd=?, is_4ps=?, is_solo_parent=?, is_family_head=?, years_lived=?
             WHERE resident_id=?
         ");
         $stmt->bind_param(
-            "ssssssissssssssssssssssiiiiii",
+            "ssssssissssssssssssssssiiiiiii",
             $submitted['first_name'], $submitted['middle_name'], $submitted['last_name'], $submitted['alias'], $submitted['suffix'],
             $submitted['birthdate'], $submitted['age'], $submitted['sex'], $submitted['civil_status'], $submitted['resident_address'],
             $submitted['street'], $submitted['voter_status'], $submitted['employment_status'], $submitted['contact_number'], $submitted['email_address'],
             $submitted['religion'], $submitted['profession_occupation'], $submitted['educational_attainment'], $submitted['education_details'], $submitted['school_status'],
-            $submitted['philsys_card_no'], $submitted['birth_place'], $submitted['citizenship'], $submitted['is_senior'], $submitted['is_pwd'], $submitted['is_4ps'], $submitted['is_solo_parent'], $submitted['is_family_head'],
+            $submitted['philsys_card_no'], $submitted['birth_place'], $submitted['citizenship'], $submitted['is_senior'], $submitted['is_pwd'], $submitted['is_4ps'], $submitted['is_solo_parent'], $submitted['is_family_head'],  $submitted['years_lived'],
             $id
         );
         $stmt->execute();
@@ -183,16 +184,16 @@ if(isset($_POST['add_resident'])){
                 birthdate,age,sex,civil_status,resident_address,
                 street,voter_status,employment_status,contact_number,email_address,
                 religion,profession_occupation,educational_attainment,education_details,school_status,
-                philsys_card_no,birth_place,citizenship,is_senior,is_pwd,is_4ps,is_solo_parent,is_family_head
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                philsys_card_no,birth_place,citizenship,is_senior,is_pwd,is_4ps,is_solo_parent,is_family_head, years_lived
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
         ");
         $stmt->bind_param(
-            "ssssssissssssssssssssssiiiii",
+            "ssssssissssssssssssssssiiiiii",
             $first_name,$middle_name,$last_name,$alias,$suffix,
             $birthdate,$age,$sex,$civil_status,$resident_address,
             $street,$voter_status,$employment_status,$contact_number,$email_address,
             $religion,$profession_occupation,$educational_attainment,$education_details,$school_status,
-            $philsys_card_no,$birth_place,$citizenship,$is_senior,$is_pwd,$is_4ps,$is_solo_parent,$is_family_head
+            $philsys_card_no,$birth_place,$citizenship,$is_senior,$is_pwd,$is_4ps,$is_solo_parent,$is_family_head,$years_lived
         );
         $stmt->execute();
         $last_id = $conn->insert_id;

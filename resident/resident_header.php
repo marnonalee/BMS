@@ -63,36 +63,24 @@ header .dropdown a:hover { background-color: #f3f4f6; }
 
 #notifDropdown li:hover { background-color: #eef2ff; }
 </style>
+
 <header class="bg-theme-gradient text-white shadow-md sticky top-0 z-50">
   <div class="container mx-auto flex flex-col md:flex-row justify-between items-center p-4 space-y-2 md:space-y-0">
-
-    <!-- Logo & Barangay Info -->
     <div class="flex items-center w-full md:w-auto justify-between md:justify-start space-x-4">
       <div class="flex items-center space-x-4">
         <img src="<?= !empty($settings['system_logo']) ? '../user/user_manage/uploads/' . htmlspecialchars(basename($settings['system_logo'])) : 'https://cdn-icons-png.flaticon.com/512/149/149071.png' ?>" 
-     alt="Logo" 
-     class="h-14 w-14 rounded-full border-2 border-white shadow-lg bg-white p-1">
-
+             alt="Logo" class="h-14 w-14 rounded-full border-2 border-white shadow-lg">
         <div class="text-left">
-          <h3 class="font-extrabold text-lg sm:text-2xl tracking-wide">
-            <?= htmlspecialchars($settings['barangay_name'] ?? 'Barangay Name') ?>
-          </h3>
-          <p class="text-xs sm:text-sm text-white/80">
-            <?= htmlspecialchars($settings['municipality'] ?? 'Municipality') ?>, <?= htmlspecialchars($settings['province'] ?? 'Province') ?>
-          </p>
+          <h3 class="font-extrabold text-lg sm:text-2xl tracking-wide"><?= htmlspecialchars($settings['barangay_name'] ?? 'Barangay Name') ?></h3>
+          <p class="text-xs sm:text-sm text-white/80"><?= htmlspecialchars($settings['municipality'] ?? 'Municipality') ?>, <?= htmlspecialchars($settings['province'] ?? 'Province') ?></p>
         </div>
       </div>
-    </div>
-
-    <!-- Navigation & Profile -->
+     
     <div class="flex items-center space-x-4 md:space-x-6 w-full md:w-auto justify-end mt-2 md:mt-0">
-
-      <!-- Dashboard Button -->
-      <a href="dashboard.php" class="bg-white/20 hover:bg-white/30 text-white font-semibold px-4 py-2 rounded-lg transition duration-200 flex items-center">
+      <a href="dashboard.php" class="bg-white/20 hover:bg-white/30 text-white font-semibold px-4 py-2 rounded-lg transition duration-200">
         <i class="fas fa-home mr-1"></i> Dashboard
       </a>
 
-      <!-- Notifications -->
       <div class="relative">
         <button id="notifBell" class="relative p-2 rounded-full hover:bg-white/20 transition duration-200">
           <i class="fas fa-bell text-xl sm:text-2xl"></i>
@@ -100,7 +88,7 @@ header .dropdown a:hover { background-color: #f3f4f6; }
             <span class="absolute -top-1 -right-1 inline-flex items-center justify-center px-2 py-1 text-xs font-bold text-white bg-red-500 rounded-full shadow-md"><?= $unreadCount ?></span>
           <?php endif; ?>
         </button>
-        <div id="notifDropdown" class="hidden absolute right-0 mt-2 w-full sm:w-80 bg-white shadow-2xl rounded-xl overflow-hidden z-50 max-h-96 overflow-y-auto dropdown">
+        <div id="notifDropdown" class="hidden absolute right-0 sm:right-0 mt-2 w-full sm:w-80 bg-white shadow-2xl rounded-xl overflow-hidden z-50 max-h-96 overflow-y-auto dropdown">
           <?php if(count($notifications) > 0): ?>
             <ul>
               <?php foreach($notifications as $notif): ?>
@@ -117,7 +105,6 @@ header .dropdown a:hover { background-color: #f3f4f6; }
         </div>
       </div>
 
-      <!-- Profile Dropdown -->
       <div class="relative">
         <button id="profileBtn" class="flex items-center space-x-2 p-2 rounded-full hover:bg-white/20 transition duration-200">
           <img src="<?= (!empty($resident['profile_pic']) && $resident['profile_pic'] != 'uploads/default.png') ? '../uploads/' . htmlspecialchars(basename($resident['profile_pic'])) : 'https://cdn-icons-png.flaticon.com/512/149/149071.png' ?>" 
@@ -136,7 +123,6 @@ header .dropdown a:hover { background-color: #f3f4f6; }
           </a>
         </div>
       </div>
-
     </div>
   </div>
 </header>

@@ -1,4 +1,4 @@
-<?php
+<?php 
 session_start();
 include '../db.php';
 
@@ -9,6 +9,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
     $start_date = $_POST['start_date'];
     $end_date = $_POST['end_date'];
 
+    // Check if resident already holds a position
     $checkResident = $conn->query("SELECT * FROM barangay_officials bo 
                                    JOIN residents r ON bo.resident_id = r.resident_id 
                                    WHERE bo.resident_id='$resident_id' AND r.is_archived = 0");
@@ -18,14 +19,16 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         exit();
     }
 
-    $posQuery = $conn->query("SELECT `limit` FROM positions WHERE id='$position_id'");
+    // Validate position
+    $posQuery = $conn->query("SELECT `limit`, position_name FROM positions WHERE id='$position_id'");
     if($posQuery->num_rows == 0){
         $_SESSION['success_message'] = ['type'=>'error','text'=>'Invalid position selected.'];
         header('Location: barangay_officials.php');
         exit();
     }
-
     $pos = $posQuery->fetch_assoc();
+
+    // Check position limit
     $countQuery = $conn->query("SELECT COUNT(*) as cnt FROM barangay_officials bo 
                                 JOIN residents r ON bo.resident_id = r.resident_id 
                                 WHERE bo.position_id='$position_id' AND r.is_archived = 0");
@@ -36,6 +39,7 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         exit();
     }
 
+    // Handle photo upload
     $photo = '';
     if(isset($_FILES['photo']) && $_FILES['photo']['error'] === 0){
         $fileTmp = $_FILES['photo']['tmp_name'];
@@ -47,12 +51,20 @@ if($_SERVER['REQUEST_METHOD'] === 'POST'){
         }
     }
 
+    // Insert into barangay_officials
     $stmt = $conn->prepare("INSERT INTO barangay_officials (resident_id, position_id, department, start_date, end_date, photo) VALUES (?, ?, ?, ?, ?, ?)");
     $stmt->bind_param("iissss", $resident_id, $position_id, $department, $start_date, $end_date, $photo);
 
     if($stmt->execute()){
+        // Update profession_occupation in residents table
+        $updateProfession = $conn->prepare("UPDATE residents SET profession_occupation=? WHERE resident_id=?");
+        $updateProfession->bind_param("si", $pos['position_name'], $resident_id);
+        $updateProfession->execute();
+        $updateProfession->close();
+
         $_SESSION['success_message'] = ['type'=>'success','text'=>'Official added successfully!'];
 
+        // Log activity
         $user_id = $_SESSION['user_id'] ?? 0;
         $residentQuery = $conn->query("SELECT first_name, last_name FROM residents WHERE resident_id='$resident_id' AND is_archived = 0");
         $resident = $residentQuery->fetch_assoc();

@@ -54,7 +54,10 @@ $systemLogoPath = '../' . $systemLogo;
 <div class="flex h-screen">
 <aside id="sidebar" class="w-64 bg-gradient-to-b from-blue-500 to-blue-700 text-white flex flex-col shadow-xl transition-all duration-300 h-screen">
     <div class="flex items-center justify-between p-4 border-b border-white/20">
-        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogoPath) ?>" alt="Barangay Logo" class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white transition-all">
+        <div class="flex items-center space-x-3"><img src="<?= htmlspecialchars($systemLogoPath) ?>"
+     alt="Barangay Logo"
+     class="w-16 h-16 rounded-full object-cover shadow-sm border-2 border-white bg-white p-1 transition-all">
+
             <span class="font-semibold text-lg sidebar-text"><?= htmlspecialchars($barangayName) ?></span>
         </div>
         <button id="toggleSidebar" class="material-icons cursor-pointer text-2xl">chevron_left</button>
@@ -236,56 +239,61 @@ $systemLogoPath = '../' . $systemLogo;
       </div>
       
 
-      <!-- Residents Table -->
       <div class="bg-white p-6 rounded-2xl shadow-lg overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200" id="residentsTable">
-          <thead class="bg-gray-100">
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sex</th>
-              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Age</th>
-              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Voter Status</th>
-              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Resident Address</th>
-              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Street</th>
-            </tr>
-          </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <?php if($residentsQuery->num_rows > 0): ?>
-              <?php while($resident = $residentsQuery->fetch_assoc()): ?>
-                <tr class="hover:bg-gray-50 cursor-pointer transition" data-resident='<?= json_encode($resident) ?>'>
-                  <td class="px-6 py-4"><?= htmlspecialchars($resident['first_name'].' '.$resident['middle_name'].' '.$resident['last_name']) ?></td>
-                  <td class="px-6 py-4"><?= htmlspecialchars($resident['sex']) ?></td>
-                  <td class="px-6 py-4"><?= htmlspecialchars($resident['age']) ?></td>
-                  <td class="px-6 py-4"><?= htmlspecialchars($resident['voter_status']) ?></td>
-                  <td class="px-6 py-4"><?= htmlspecialchars($resident['resident_address']) ?></td>
-                  <td class="px-6 py-4"><?= htmlspecialchars($resident['street']) ?></td>
+          <table class="min-w-full divide-y divide-gray-200" id="residentsTable">
+            <thead class="bg-gray-100">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">First Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Middle Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Last Name</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sex</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Voter Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Resident Address</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Street</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Occupation</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employment Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Years Lived</th>
                 </tr>
-              <?php endwhile; ?>
-            <?php else: ?>
-              <tr>
-                <td colspan="6" class="px-6 py-4 text-center text-gray-400">No residents found.</td>
-              </tr>
-            <?php endif; ?>
-          </tbody>
-        </table>
+            </thead>
+            <tbody class="bg-white divide-y divide-gray-200">
+                <?php if($residentsQuery->num_rows > 0): ?>
+                    <?php while($resident = $residentsQuery->fetch_assoc()): ?>
+                        <tr class="hover:bg-gray-50 cursor-pointer transition" data-resident='<?= json_encode($resident) ?>'>
+                            <td class="px-6 py-4"><?= htmlspecialchars($resident['first_name']) ?></td>
+                            <td class="px-6 py-4"><?= htmlspecialchars($resident['middle_name']) ?></td>
+                            <td class="px-6 py-4"><?= htmlspecialchars($resident['last_name']) ?></td>
+                            <td class="px-6 py-4"><?= htmlspecialchars($resident['sex']) ?></td>
+                            <td class="px-6 py-4"><?= htmlspecialchars($resident['voter_status']) ?></td>
+                            <td class="px-6 py-4"><?= htmlspecialchars($resident['resident_address']) ?></td>
+                            <td class="px-6 py-4"><?= htmlspecialchars($resident['street']) ?></td>
+                            <td class="px-6 py-4"><?= htmlspecialchars($resident['profession_occupation']) ?></td>
+                            <td class="px-6 py-4"><?= htmlspecialchars($resident['employment_status']) ?></td>
+                            <td class="px-6 py-4"><?= htmlspecialchars($resident['years_lived']) ?></td>
+                        </tr>
+                    <?php endwhile; ?>
+                <?php else: ?>
+                 <td colspan="7" class="px-6 py-4 text-center text-gray-400">No resident found.</td>
 
-        <!-- Pagination -->
-        <?php if($totalPages > 1 && $search === ''): ?>
-          <div class="flex justify-center mt-6 space-x-2">
-            <?php if($page > 1): ?>
-              <a href="?page=<?= $page-1 ?>&perPage=<?= $perPage ?>&search=<?= urlencode($search) ?>&filter=<?= urlencode($filter) ?>" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition">Prev</a>
+                <?php endif; ?>
+            </tbody>
+
+          </table>
+
+          <?php if($totalPages > 1): ?>
+              <div class="flex justify-center mt-6 space-x-2">
+                <?php if($page > 1): ?>
+                  <a href="?page=<?= $page-1 ?>" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition">Prev</a>
+                <?php endif; ?>
+                <?php for($i = 1; $i <= $totalPages; $i++): ?>
+                  <a href="?page=<?= $i ?>" class="px-4 py-2 rounded-lg <?= ($i == $page) ? 'bg-emerald-500 text-white' : 'bg-gray-200 hover:bg-gray-300' ?> transition"><?= $i ?></a>
+                <?php endfor; ?>
+                <?php if($page < $totalPages): ?>
+                  <a href="?page=<?= $page+1 ?>" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition">Next</a>
+                <?php endif; ?>
+              </div>
             <?php endif; ?>
-            <?php for($i = 1; $i <= $totalPages; $i++): ?>
-              <a href="?page=<?= $i ?>&perPage=<?= $perPage ?>&search=<?= urlencode($search) ?>&filter=<?= urlencode($filter) ?>" class="px-4 py-2 rounded-lg <?= ($i == $page) ? 'bg-emerald-500 text-white' : 'bg-gray-200 hover:bg-gray-300' ?> transition"><?= $i ?></a>
-            <?php endfor; ?>
-            <?php if($page < $totalPages): ?>
-              <a href="?page=<?= $page+1 ?>&perPage=<?= $perPage ?>&search=<?= urlencode($search) ?>&filter=<?= urlencode($filter) ?>" class="px-4 py-2 bg-gray-200 rounded-lg hover:bg-gray-300 transition">Next</a>
-            <?php endif; ?>
-          </div>
-        <?php endif; ?>
       </div>
 
-      <!-- Archived Residents Table -->
       <div id="archivedContainer" class="hidden bg-white p-6 rounded-2xl shadow-lg mt-4 overflow-x-auto">
         <h3 class="text-lg font-semibold mb-4 text-red-600">Archived Residents</h3>
 
@@ -298,44 +306,50 @@ $systemLogoPath = '../' . $systemLogo;
           </select>
           <span class="text-gray-600 font-medium">entries</span>
         </div>
+      <table id="archivedResidentsTable" class="min-w-full divide-y divide-gray-200">
+        <thead class="bg-gray-100">
+          <tr>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              <input type="checkbox" id="selectAllArchived">
+            </th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">First Name</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Middle Name</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Last Name</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sex</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Voter Status</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Resident Address</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Street</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Occupation</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Employment Status</th>
+            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Years Lived</th>
+          </tr>
+        </thead>
 
-        <table id="archivedResidentsTable" class="min-w-full divide-y divide-gray-200">
-          <thead class="bg-gray-100">
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                <input type="checkbox" id="selectAllArchived">
-              </th>
-              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Name</th>
-              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Sex</th>
-              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Age</th>
-              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Voter Status</th>
-              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Resident Address</th>
-              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Street</th>
+        <<tbody class="bg-white divide-y divide-gray-200">
+    <?php if($residentsQuery->num_rows > 0): ?>
+        <?php while($resident = $residentsQuery->fetch_assoc()): ?>
+            <tr class="hover:bg-gray-50 cursor-pointer transition" data-resident='<?= json_encode($resident) ?>'>
+                <td class="px-6 py-4"><?= htmlspecialchars($resident['first_name']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($resident['middle_name']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($resident['last_name']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($resident['sex']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($resident['voter_status']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($resident['resident_address']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($resident['street']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($resident['profession_occupation']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($resident['employment_status']) ?></td>
+                <td class="px-6 py-4"><?= htmlspecialchars($resident['years_lived']) ?></td>
             </tr>
-          </thead>
+        <?php endwhile; ?>
+    <?php else: ?>
+        <tr class="h-32">
+            <td colspan="10" class="flex items-center justify-center text-gray-400">No residents found.</td>
+        </tr>
+    <?php endif; ?>
+</tbody>
 
-          <tbody class="bg-white divide-y divide-gray-200">
-            <?php if($archivedQuery->num_rows > 0): ?>
-              <?php while($arch = $archivedQuery->fetch_assoc()): ?>
-                <tr class="hover:bg-gray-50 cursor-pointer transition" data-resident='<?= json_encode($arch) ?>'>
-                  <td class="px-6 py-4">
-                    <input type="checkbox" class="selectArchived" value="<?= $arch['resident_id'] ?>">
-                  </td>
-                  <td class="px-6 py-4"><?= htmlspecialchars($arch['first_name'].' '.$arch['middle_name'].' '.$arch['last_name']) ?></td>
-                  <td class="px-6 py-4"><?= htmlspecialchars($arch['sex']) ?></td>
-                  <td class="px-6 py-4"><?= htmlspecialchars($arch['age']) ?></td>
-                  <td class="px-6 py-4"><?= htmlspecialchars($arch['voter_status']) ?></td>
-                  <td class="px-6 py-4"><?= htmlspecialchars($arch['resident_address']) ?></td>
-                  <td class="px-6 py-4"><?= htmlspecialchars($arch['street']) ?></td>
-                </tr>
-              <?php endwhile; ?>
-            <?php else: ?>
-              <tr>
-                <td colspan="7" class="px-6 py-4 text-center text-gray-400">No archived residents.</td>
-              </tr>
-            <?php endif; ?>
-          </tbody>
-        </table>
+      </table>
+
 
         <!-- Action Buttons -->
         <div class="mt-3 flex space-x-2">
@@ -413,7 +427,7 @@ $systemLogoPath = '../' . $systemLogo;
               <option>Divorced</option>
             </select>
           </div>
-          <div><label>Resident Address</label><input type="text" name="resident_address" id="resident_address" class="w-full border-b-2 py-1.5" required <?= $readonly ?>></div>
+          <div><label>Resident Address</label><input type="text" name="resident_address" id="resident_address" class="w-full border-b-2 py-1.5"  <?= $readonly ?>></div>
           <div><label>Birth Place</label><input type="text" name="birth_place" id="birth_place" class="w-full border-b-2 py-1.5" <?= $readonly ?>></div>
           <div><label>Street</label><input type="text" name="street" id="street" class="w-full border-b-2 py-1.5" <?= $readonly ?>></div>
           <div>
@@ -424,6 +438,7 @@ $systemLogoPath = '../' . $systemLogo;
               <option value="Non-Filipino">Non-Filipino</option>
             </select>
           </div>
+          
            <div>
             <label>Voter Status</label>
             <select name="voter_status" id="voter_status" class="w-full border-b-2 py-1.5" required <?= $readonly ?>>
@@ -480,11 +495,23 @@ $systemLogoPath = '../' . $systemLogo;
               <option value="enrolled">Currently Enrolled</option>
             </select>
           </div>
+          
+          <div>
+            <label>Years Lived in Barangay</label>
+            <select name="years_lived" id="years_lived" class="w-full border-b-2 py-1.5" <?= $readonly ?>>
+              <option value="">Select</option>
+              <?php for($i=1; $i<=100; $i++): ?>
+                <option value="<?= $i ?>"><?= $i ?> year<?= $i>1?'s':'' ?></option>
+              <?php endfor; ?>
+            </select>
+          </div>
+
+
+          <div><label>PhilSys Card No.</label><input type="text" name="philsys_card_no" id="philsys_card_no" class="w-full border-b-2 py-1.5" maxlength="12" <?= $readonly ?>></div>
           <div class="flex items-center space-x-2 mt-2">
             <label class="font-medium">Head of the Family:</label>
             <input type="checkbox" name="is_family_head" id="is_family_head" <?= ($role !== 'admin' ? 'disabled' : '') ?>>
           </div>
-          <div><label>PhilSys Card No.</label><input type="text" name="philsys_card_no" id="philsys_card_no" class="w-full border-b-2 py-1.5" maxlength="12" <?= $readonly ?>></div>
           <div class="flex gap-3 mt-1 md:col-span-2">
             <label><input type="checkbox" name="is_senior" id="is_senior" <?= ($role !== 'admin' ? 'disabled' : '') ?>> Senior</label>
             <label><input type="checkbox" name="is_pwd" id="is_pwd" <?= ($role !== 'admin' ? 'disabled' : '') ?>> PWD</label>
@@ -555,7 +582,7 @@ $systemLogoPath = '../' . $systemLogo;
             </select>
           </div>
 
-          <div><label>Resident Address <span class="text-red-500">*</span></label><input type="text" name="resident_address" class="w-full border-b-2 py-1.5" required></div>
+          <div><label>Resident Address <span class="text-red-500">*</span></label><input type="text" name="resident_address" class="w-full border-b-2 py-1.5" ></div>
           <div><label>Birth Place</label><input type="text" name="birth_place" class="w-full border-b-2 py-1.5"></div>
           <div><label>Street</label><input type="text" name="street" class="w-full border-b-2 py-1.5"></div>
 
@@ -628,14 +655,22 @@ $systemLogoPath = '../' . $systemLogo;
               <option value="enrolled">Currently Enrolled</option>
             </select>
           </div>
+          <div>
+            <label>Years Lived in Barangay</label>
+            <select name="years_lived" id="years_lived" class="w-full border-b-2 py-1.5" <?= $readonly ?>>
+              <option value="">Select</option>
+              <?php for($i=1; $i<=100; $i++): ?>
+                <option value="<?= $i ?>"><?= $i ?> year<?= $i>1?'s':'' ?></option>
+              <?php endfor; ?>
+            </select>
+          </div>
+          
 
-          <div class="flex items-center space-x-2 mt-2">
+          <div><label>PhilSys Card No.</label><input type="text" name="philsys_card_no" class="w-full border-b-2 py-1.5" maxlength="12"></div>
+                <div class="flex items-center space-x-2 mt-2">
             <label class="font-medium">Head of the Family:</label>
             <input type="checkbox" name="is_family_head">
           </div>
-
-          <div><label>PhilSys Card No.</label><input type="text" name="philsys_card_no" class="w-full border-b-2 py-1.5" maxlength="12"></div>
-
           <div class="flex gap-3 mt-1 md:col-span-2">
             <label><input type="checkbox" name="is_senior"> Senior</label>
             <label><input type="checkbox" name="is_pwd"> PWD</label>
@@ -654,7 +689,6 @@ $systemLogoPath = '../' . $systemLogo;
   </div>
 </div>
 
-<!-- Delete Resident Modal -->
 <div id="deleteConfirmModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
   <div class="bg-white rounded-xl p-6 w-80 text-center shadow-lg">
     <h2 class="text-lg font-semibold mb-4">Delete Resident?</h2>
@@ -669,7 +703,6 @@ $systemLogoPath = '../' . $systemLogo;
   </div>
 </div>
 
-<!-- Success Modal -->
 <div id="successModal" class="fixed inset-0 bg-black bg-opacity-50 hidden flex items-center justify-center z-50">
   <div class="bg-white rounded-xl p-6 w-80 text-center shadow-lg relative">
     <button id="closeSuccessModal" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 material-icons">close</button>
@@ -688,7 +721,6 @@ $systemLogoPath = '../' . $systemLogo;
     <form id="archivedResidentForm">
       <input type="hidden" name="resident_id" id="archived_resident_id">
 
-      <!-- Personal Info -->
       <section class="mb-4">
         <h3 class="font-medium mb-2">Personal Info</h3>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">

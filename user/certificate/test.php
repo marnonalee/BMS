@@ -1,56 +1,55 @@
-<?php
+<?php 
 require_once(__DIR__ . '/../../fpdf/fpdf.php');
 require_once(__DIR__ . '/../../fpdi/src/autoload.php');
 
 $pdf = new \setasign\Fpdi\Fpdi();
 $pdf->AddPage();
 
-// Load template para may background ka
-$page = $pdf->setSourceFile(__DIR__."/../templates/guardianship.pdf");
+// Load RESIDENCY template
+$page = $pdf->setSourceFile(__DIR__."/../templates/RESIDENCY.pdf");
 $tpl = $pdf->importPage(1);
 $pdf->useTemplate($tpl, 0, 0, 210);
 
-// -------------------------
-// DRAW GRID FOR TESTING
-// -------------------------
+// Optional: Draw grid for testing positions
 $pdf->SetFont('Arial','',6);
 $pdf->SetTextColor(150,150,150);
 
-// Vertical lines (x-axis)
 for ($x = 0; $x <= 210; $x += 5) {
     $pdf->Line($x, 0, $x, 297);
-    $pdf->Text($x + 1, 3, $x); // coordinate label
+    $pdf->Text($x + 1, 3, $x);
 }
 
-// Horizontal lines (y-axis)
 for ($y = 0; $y <= 297; $y += 5) {
     $pdf->Line(0, $y, 210, $y);
-    $pdf->Text(1, $y - 1, $y); // coordinate label
+    $pdf->Text(1, $y - 1, $y);
 }
 
-// -------------------------
-// SAMPLE TEST TEXT
-// -------------------------
+// Set font and color for actual data
 $pdf->SetFont("Arial","B",10);
-$pdf->SetTextColor(255,0,0);
+$pdf->SetTextColor(0,0,0);
 
-// Put markers for easier checking
-$pdf->Text(80, 126, "GUARDIAN NAME");
-$pdf->Text(150, 126, "ADDRESS");
+// Sample data
+$full_name = "Juan D. Santos";
+$resident_address = "123 P. dela Cruz St";
+$years_lived_word = "Eight";
+$years_lived_number = "8";
+$purpose = "Employment";                         // PURPOSE
+$issued_day = "02";
+$issued_month_year = "December 2025";
 
-$pdf->Text(55, 154, "CHILD NAME");
-$pdf->Text(110, 154, "CHILD AGE");
-$pdf->Text(25, 160, "BIRTHPLACE");
-$pdf->Text(65, 160, "BIRTHDATE");
+// Place sample data on template (adjust X, Y coordinates as needed)
+$pdf->Text(90, 120, $full_name);                  // Full Name
+$pdf->Text(55, 129, $resident_address);           // Resident Address
+$pdf->Text(85, 150, $full_name);                  // (Optional duplicate, remove if not needed)
+$pdf->Text(40, 156, $years_lived_word);           // Years Lived (word)
+$pdf->Text(67, 156, "($years_lived_number)");     // Years Lived (number)
+$pdf->Text(30, 180, $purpose);                   // PURPOSE
+$pdf->Text(45, 195, $issued_day);                 // Issued Day
+$pdf->Text(75, 195, $issued_month_year);          // Issued Month & Year
 
-$pdf->Text(27, 183, "PURPOSE");
-$pdf->Text(45, 202, "DAY");
-$pdf->Text(70, 202, "MONTH");
 
-// -------------------------
-// OUTPUT PDF
-// -------------------------
 header('Content-Type: application/pdf');
-header('Content-Disposition: inline; filename="guardianship_tester.pdf"');
+header('Content-Disposition: inline; filename="residency_test.pdf"');
 $pdf->Output();
 exit;
+?>
